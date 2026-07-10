@@ -8,6 +8,27 @@ The example throughout uses a fictional new project called `acme-corp/legacy-mod
 
 ---
 
+## Quick start: `tools/new-project.sh`
+
+Steps 1–4 below (fork, clone, add upstream, clean up template docs) are automated by `tools/new-project.sh`, which lives in this repo. Run it from a clone of AgenticPlayground:
+
+```bash
+./tools/new-project.sh --name legacy-moderniser \
+  --goal "Modernise the legacy billing service" \
+  --tier playground --lifecycle long
+```
+
+- `--tier secure|playground` — scaffold from AgenticDevcontainer or AgenticPlayground.
+- `--lifecycle short|long` — `short` creates a disposable **local-only** git repo (no GitHub, just an `upstream` remote for reference); `long` also creates a real GitHub repo (`gh repo create --source=. --push`, private by default, `--public` to override) and pushes to it as `origin`.
+- Writes a `GOAL.md` at the project root capturing your stated goal, tier, lifecycle, and pointers to the still-manual steps below (firewall domains, `post-create.sh` dependencies).
+- Promote a `short` project to `long` later, from inside it: `./tools/new-project.sh --promote --name legacy-moderniser`.
+
+Requires the `gh` CLI (logged in) for `--lifecycle long` and `--promote`. Steps 5+ below (firewall feature-sets, `post-create.sh`, skills) are intentionally left manual — the script only points you at them via `GOAL.md`.
+
+The rest of this guide walks through the equivalent steps by hand, useful if you want to understand or customize what the script does.
+
+---
+
 ## Strategy
 
 You fork this project on GitHub — the fork *becomes* your new project repo. Your customizations live exclusively in the designated extension points (skills, `post-create.sh`, firewall feature lists) — not in the core infrastructure files. This keeps merge conflicts to near-zero when you pull upstream updates.

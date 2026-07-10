@@ -39,7 +39,7 @@ See **[docs/security.md](docs/security.md)** for the full breakdown and how to v
 There are two ways to adopt this setup — both use a GitHub fork so you can pull upstream improvements at any time:
 
 - **Adding to an existing repo** — see **[docs/spin-off-existing-repo.md](docs/spin-off-existing-repo.md)** for a full walkthrough.
-- **Starting a new project from scratch** — see **[docs/spin-off-new-project.md](docs/spin-off-new-project.md)** for a full walkthrough.
+- **Starting a new project from scratch** — see **[docs/spin-off-new-project.md](docs/spin-off-new-project.md)** for a full walkthrough, or run `./tools/new-project.sh --name <slug> --goal "<text>" --tier secure|playground --lifecycle short|long` to automate it.
 
 In both cases the short version is:
 
