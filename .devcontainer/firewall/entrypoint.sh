@@ -31,6 +31,14 @@ fi
 # Manual permanent allowlist (what `fw allow` writes) — starts empty.
 touch /policy/allowlist.acl.perm 2>/dev/null || true
 
+# Temporary "allow all" override (see `fw allow-all`). allow_all.acl is the
+# live dstdom_regex ACL file Squid reads directly — start empty (inactive) on
+# every boot so a restart never resumes a stale allow-all window. Any leftover
+# expiry marker from a previous run is dropped for the same reason.
+touch /policy/allow_all.acl 2>/dev/null || true
+rm -f /policy/allow_all.until 2>/dev/null || true
+touch /policy/allow_all_events.log 2>/dev/null || true
+
 # Build the live allowlist immediately so Squid starts with the full policy
 # (avoids a deny-all race window while the watcher spins up).
 {

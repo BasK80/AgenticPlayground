@@ -22,21 +22,62 @@ docker exec      "$FW" fw feature create mycdn \
 docker exec      "$FW" fw feature edit mycdn \
   --domain cdn.example.com --domain assets.example.com     # replace all domains for a user feature
 docker exec      "$FW" fw feature delete mycdn             # delete a user-defined feature
+
+docker exec      "$FW" fw allow-all 600                     # DANGER: bypass the entire firewall for 600s (max 3600s)
+docker exec      "$FW" fw allow-all off                     # end it early
+docker exec      "$FW" fw allow-all status                  # check whether it's active + time remaining
 ```
 
 Changes take effect within ~5s (the firewall watcher reloads Squid). Run these on the **host**, not inside the dev container — `development` is deliberately unable to reach the management plane.
+
+## Temporarily allowing all traffic
+
+`fw allow-all` bypasses the firewall entirely — every domain and every port —
+for a bounded, self-expiring window. It exists for playground projects with
+looser security requirements where the allowlist model is too restrictive
+(e.g. exploratory work against arbitrary third-party APIs). It is **not**
+part of the default-deny model used for normal work; treat it as an escape
+hatch, not a config knob.
+
+```bash
+docker exec "$FW" fw allow-all           # default TTL: 300s (5 min)
+docker exec "$FW" fw allow-all 1800      # custom TTL, in seconds
+docker exec "$FW" fw allow-all off       # turn it off before it expires
+docker exec "$FW" fw allow-all status    # ACTIVE (+ seconds remaining) or inactive
+```
+
+Notes:
+
+- **Always auto-expires.** There is no "permanent" allow-all; the TTL defaults
+  to 300s and is hard-capped at 3600s (1 hour) — a request for a longer TTL is
+  silently clamped down to the cap.
+- **Bypasses everything, including the CONNECT port restriction.** Normally
+  `CONNECT` is only allowed to port 443; while allow-all is active it's
+  allowed to any port, so this really is "all traffic", not just "any domain
+  on 443".
+- **Host-only**, like every other `fw` command — it cannot be triggered from
+  inside the dev container.
+- **Auditable.** Every on/off transition (including automatic expiry) is
+  appended to `/policy/allow_all_events.log` with a timestamp and the TTL
+  requested. Squid's `access.log` (and the long-term audit DB) still records
+  every individual request made during the window, same as always.
+- Also available from the web dashboard (see below) as a red **Allow All
+  (danger)** control with a persistent "ALL TRAFFIC ALLOWED" banner while
+  active.
 
 ## Web dashboard (localhost only)
 
 A single-page dashboard is served by the `control` container at **<http://127.0.0.1:8088>**. It is bound to `127.0.0.1` only — the same localhost-only pattern as the Azure login ports — and is not reachable from inside `development`.
 
-The dashboard has three tabs:
+The dashboard has three tabs, plus a sidebar control for allow-all:
 
 | Tab | What it shows |
 |---|---|
 | **Traffic** | A live traffic stream (every proxied request, green/red, filterable by host). Below it, two stacked panels: **Active Allowlist** (top) lets you add a domain manually and shows **Manual (permanent)**, **Temporary** (live countdown), and a collapsible **Baseline (always on)** section; **Recently Blocked** (bottom) lists denied hosts with their last-seen time (ISO 8601, e.g. `2026-06-21 13:02:43`) and hit count, with a single **Allow ▾** button that expands to Permanent / 5m / 15m / 1h / Custom options inline. Allowing a blocked domain immediately marks its row as resolved — no page switch needed. |
 | **Audit Log** | Long-term SQLite history of all proxied traffic. Filter by date range, host, and decision; download any period as CSV. |
 | **Feature Sets** | One row per toggleable feature-set (`anthropic`, `github`, `npm`, …). The **State** column shows **On** (green), **Via \<name\>** (blue, pulled in as a dependency), or **Off** (gray). The **Actions** column has **Enable**/**Disable** for directly-controllable features; dependency-pulled features show **Locked by \<name\>** instead of a toggle. User-created features also have **Edit** and **Delete** buttons. A **Create Feature** button above the table opens a form to define a new feature-set (name, description, domains, dependencies) stored persistently in `/policy/features.d/`. |
+
+The sidebar also has an **Allow All (danger)** box: pick a TTL (5m/15m/30m/1h) and click **Activate** to bypass the firewall entirely. While active, a red **"ALL TRAFFIC ALLOWED — expires in …"** banner is pinned to the top of every tab with a **Disable now** button.
 
 Every mutation from the dashboard writes to the same shared `policy` volume that the `fw` script modifies directly, so the CLI and the dashboard are always in sync.
 

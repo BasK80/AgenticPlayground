@@ -36,6 +36,11 @@ AUDIT_DB    = os.environ.get("AUDIT_DB",      "/auditlog/audit.db")
 ALLOW_CMD   = os.environ.get("ALLOW_CMD",     "/usr/local/bin/allow")
 DENY_CMD    = os.environ.get("DENY_CMD",      "/usr/local/bin/deny")
 FEATURE_CMD = os.environ.get("FEATURE_CMD",   "/usr/local/bin/feature")
+ALLOWALL_CMD    = os.environ.get("ALLOWALL_CMD",    "/usr/local/bin/allow-all")
+ALLOWALL_UNTIL_FILE  = os.environ.get("ALLOWALL_UNTIL_FILE",  "/policy/allow_all.until")
+ALLOWALL_EVENTS_FILE = os.environ.get("ALLOWALL_EVENTS_FILE", "/policy/allow_all_events.log")
+ALLOWALL_DEFAULT_TTL = 300
+ALLOWALL_MAX_TTL     = 3600
 MAX_BODY    = 4096   # bytes — cap on POST body (default)
 MAX_BODY_FEATURE = 65536  # bytes — cap for feature CRUD endpoints
 AUDIT_MAX_ROWS = 1000   # server-side cap on /api/audit (download is uncapped)
@@ -99,6 +104,48 @@ def _read_allowlist():
                     })
 
     return {"permanent": sorted(set(permanent)), "temporary": temporary}
+
+# --- Allow-all (temporary full bypass) --------------------------------------
+def _read_allow_all():
+    """Status of the temporary "allow all" override, plus recent transitions
+    parsed from the plain-text events log (kept separate from the SQLite
+    audit DB to preserve its single-writer invariant)."""
+    active = False
+    expires_at = None
+    seconds_remaining = 0
+    if os.path.isfile(ALLOWALL_UNTIL_FILE):
+        try:
+            with open(ALLOWALL_UNTIL_FILE) as fh:
+                expires_at = int(fh.read().strip())
+        except (OSError, ValueError):
+            expires_at = None
+        if expires_at is not None:
+            now = int(time.time())
+            if expires_at > now:
+                active = True
+                seconds_remaining = expires_at - now
+
+    events = []
+    if os.path.isfile(ALLOWALL_EVENTS_FILE):
+        try:
+            with open(ALLOWALL_EVENTS_FILE) as fh:
+                lines = fh.readlines()
+        except OSError:
+            lines = []
+        for line in lines[-10:]:
+            line = line.strip()
+            if line:
+                events.append(line)
+        events.reverse()
+
+    return {
+        "active": active,
+        "expires_at": expires_at,
+        "seconds_remaining": seconds_remaining,
+        "default_ttl": ALLOWALL_DEFAULT_TTL,
+        "max_ttl": ALLOWALL_MAX_TTL,
+        "recent_events": events,
+    }
 
 # --- Feature-sets -----------------------------------------------------------
 def _read_feature_defs():
@@ -621,9 +668,27 @@ tr.resolved .td-domain{opacity:.75}
   .nav-item{width:auto}
   .nav-item .nav-dot{display:none}
 }
+.allow-all-banner{
+  display:none;position:sticky;top:0;z-index:50;padding:10px 16px;
+  background:var(--red);color:#fff;font-weight:600;font-size:13px;
+  align-items:center;gap:12px;justify-content:center
+}
+.allow-all-banner.show{display:flex}
+.allow-all-banner button{background:#fff;color:var(--red);border-color:#fff;font-weight:700}
+.allow-all-box{margin:10px;padding:10px;border:1px solid var(--border);border-radius:var(--radius)}
+.allow-all-box h3{font-size:11px;font-weight:700;text-transform:uppercase;
+                   letter-spacing:.06em;color:var(--muted);margin-bottom:8px}
+.allow-all-box .row{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.allow-all-box select{padding:4px 6px;border:1px solid var(--border);border-radius:4px;
+  background:var(--surface);color:var(--text);font-size:12px;font-family:inherit}
 </style>
 </head>
 <body>
+
+<div class="allow-all-banner" id="allowAllBanner">
+  ⚠ ALL TRAFFIC ALLOWED — expires in <span id="allowAllCountdown">--</span>
+  <button id="allowAllOffBtn">Disable now</button>
+</div>
 
 <div class="shell">
 
@@ -638,6 +703,22 @@ tr.resolved .td-domain{opacity:.75}
     </button>
     <button class="nav-item" data-view="audit">Audit Log</button>
     <button class="nav-item" data-view="features">Feature Sets</button>
+
+    <div class="allow-all-box">
+      <h3>Allow All (danger)</h3>
+      <div class="row">
+        <select id="allowAllTTL">
+          <option value="300" selected>5m</option>
+          <option value="900">15m</option>
+          <option value="1800">30m</option>
+          <option value="3600">1h (max)</option>
+        </select>
+        <button id="allowAllOnBtn" class="btn-sm btn-danger">Activate</button>
+      </div>
+      <div style="font-size:11px;color:var(--muted);margin-top:6px">
+        Temporarily bypasses the entire firewall (any domain, any port). Auto-expires; max 1h.
+      </div>
+    </div>
   </nav>
 
   <!-- Content: one view visible at a time -->
@@ -1528,9 +1609,50 @@ function refreshAll() { refreshFeatures(); refreshAllowlist(); refreshBlocks(); 
 
 function refreshTraffic() { refreshAllowlist(); refreshBlocks(); }
 
+// ---- Allow-all (temporary full bypass) ----
+var currentAllowAll = { active: false, seconds_remaining: 0 };
+var allowAllBanner   = document.getElementById('allowAllBanner');
+var allowAllCountdown = document.getElementById('allowAllCountdown');
+var allowAllOnBtn  = document.getElementById('allowAllOnBtn');
+var allowAllOffBtn = document.getElementById('allowAllOffBtn');
+var allowAllTTLSel = document.getElementById('allowAllTTL');
+
+function renderAllowAll(data) {
+  currentAllowAll = data;
+  if (data.active) {
+    allowAllBanner.classList.add('show');
+    allowAllCountdown.textContent = fmtTTL(data.seconds_remaining);
+    allowAllOnBtn.textContent = 'Active';
+    allowAllOnBtn.disabled = true;
+  } else {
+    allowAllBanner.classList.remove('show');
+    allowAllOnBtn.textContent = 'Activate';
+    allowAllOnBtn.disabled = false;
+  }
+}
+function refreshAllowAll() {
+  fetch('/api/allow_all').then(function(r){
+    if (r.ok) r.json().then(renderAllowAll);
+  }).catch(function(){});
+}
+allowAllOnBtn.addEventListener('click', function() {
+  var ttl = parseInt(allowAllTTLSel.value, 10);
+  post('/api/allow_all', { action: 'on', ttl_seconds: ttl }).then(function() {
+    toast('allow-all ACTIVE for ' + fmtTTL(ttl) + ' — all traffic now bypasses the firewall', false);
+    refreshAllowAll();
+  }).catch(function(e){ toast('Error: ' + e.message, false); });
+});
+allowAllOffBtn.addEventListener('click', function() {
+  post('/api/allow_all', { action: 'off' }).then(function() {
+    toast('allow-all disabled');
+    refreshAllowAll();
+  }).catch(function(e){ toast('Error: ' + e.message, false); });
+});
+
 function refreshActiveView() {
   if      (currentView === 'traffic')   refreshTraffic();
   else if (currentView === 'features')  refreshFeatures();
+  refreshAllowAll();
 }
 
 function tickCountdowns() {
@@ -1540,6 +1662,14 @@ function tickCountdowns() {
   });
   var expired = currentAllowlist.temporary.some(function(e){ return e.expires_at <= now; });
   if (expired) refreshTraffic();
+  if (currentAllowAll.active) {
+    currentAllowAll.seconds_remaining = Math.max(0, currentAllowAll.seconds_remaining - 1);
+    if (currentAllowAll.seconds_remaining <= 0) {
+      refreshAllowAll();
+    } else {
+      allowAllCountdown.textContent = fmtTTL(currentAllowAll.seconds_remaining);
+    }
+  }
 }
 
 // ---- View router (hash-based) ----
@@ -1571,6 +1701,7 @@ window.addEventListener('hashchange', function() {
 
 // ---- Boot ----
 showView((location.hash || '').replace('#', '') || 'traffic');
+refreshAllowAll();
 setInterval(refreshActiveView, 5000);
 setInterval(tickCountdowns, 1000);
 </script>
@@ -1634,6 +1765,8 @@ class _Handler(BaseHTTPRequestHandler):
             self._json(_read_features())
         elif path == "/api/blocks":
             self._json(_read_blocks())
+        elif path == "/api/allow_all":
+            self._json(_read_allow_all())
         elif path == "/api/audit":
             self._audit_json()
         elif path == "/api/audit/download":
@@ -1704,6 +1837,19 @@ class _Handler(BaseHTTPRequestHandler):
 
         elif path == "/api/feature/delete":
             self._feature_delete(body)
+
+        elif path == "/api/allow_all":
+            action = body.get("action", "")
+            if action == "off":
+                self._run_cmd([ALLOWALL_CMD, "off"])
+            elif action == "on":
+                ttl = body.get("ttl_seconds", ALLOWALL_DEFAULT_TTL)
+                if not isinstance(ttl, int) or ttl < 1:
+                    self._json({"error": "ttl_seconds must be a positive integer"}, 400)
+                    return
+                self._run_cmd([ALLOWALL_CMD, str(ttl)])
+            else:
+                self._json({"error": "'action' must be 'on' or 'off'"}, 400)
 
         else:
             self._json({"error": "Not found"}, 404)

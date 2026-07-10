@@ -7,6 +7,7 @@
 #   docker exec      "$FW" fw blocks
 #   docker exec      "$FW" fw feature list|show|on|off|create|edit|delete <name>
 #   docker exec      "$FW" fw audit [--from D] [--to D] [--host P] [--status denied|allowed] [--limit N]
+#   docker exec      "$FW" fw allow-all [ttl_seconds] | fw allow-all off | fw allow-all status
 #   docker exec -it  "$FW" fw log
 set -euo pipefail
 
@@ -15,6 +16,10 @@ TTL=/policy/ttl.tsv
 DEFS=/policy/features.defs
 USER_DEFS=/policy/features.d
 STATE=/policy/features.state
+ALLOWALL_UNTIL=/policy/allow_all.until
+ALLOWALL_EVENTS=/policy/allow_all_events.log
+ALLOWALL_DEFAULT_TTL=300
+ALLOWALL_MAX_TTL=3600
 
 # Ensure user defs directory exists
 mkdir -p "$USER_DEFS"
@@ -113,6 +118,18 @@ _remove_feature_state() {  # name
   fi
 }
 
+# --- allow-all helpers -------------------------------------------------------
+_allow_all_remaining() {  # echoes seconds remaining, or empty if inactive
+  local until now
+  [ -s "$ALLOWALL_UNTIL" ] || return 0
+  until="$(cat "$ALLOWALL_UNTIL" 2>/dev/null || echo 0)"
+  [[ "$until" =~ ^[0-9]+$ ]] || return 0
+  now="$(date +%s)"
+  [ "$until" -gt "$now" ] && echo $(( until - now ))
+  return 0
+}
+
+
 _is_builtin() {
   [ -f "$DEFS/$1.list" ]
 }
@@ -196,10 +213,54 @@ case "${1:-}" in
       fi
     fi
     ;;
-  list)    cat /policy/allowlist.acl ;;
+  list)
+    remaining="$(_allow_all_remaining)"
+    [ -n "$remaining" ] && echo "⚠ allow-all ACTIVE — ${remaining}s remaining (ALL traffic currently bypasses this list)" >&2
+    cat /policy/allowlist.acl
+    ;;
   blocks)  tail -n 30 /var/log/squid/access.log ;;
   log)     exec tail -f /var/log/squid/access.log ;;
   audit)   shift; exec /usr/local/bin/auditlog.py query "$@" ;;
+  allow-all)
+    arg="${2:-}"
+    case "$arg" in
+      off)
+        if [ -f "$ALLOWALL_UNTIL" ]; then
+          rm -f "$ALLOWALL_UNTIL"
+          echo "$(date +%s) $(date -Iseconds) off" >> "$ALLOWALL_EVENTS"
+          echo "allow-all disabled — normal allowlist enforced again within ~5s"
+        else
+          echo "allow-all is already inactive"
+        fi
+        ;;
+      status)
+        remaining="$(_allow_all_remaining)"
+        if [ -n "$remaining" ]; then
+          echo "allow-all: ACTIVE — ${remaining}s remaining (ALL traffic, any domain/port, is currently permitted)"
+        else
+          echo "allow-all: inactive"
+        fi
+        ;;
+      ''|*[0-9]*)
+        ttl="${arg:-$ALLOWALL_DEFAULT_TTL}"
+        if ! [[ "$ttl" =~ ^[0-9]+$ ]] || [ "$ttl" -lt 1 ]; then
+          echo "ttl must be a positive integer (seconds)" >&2
+          exit 1
+        fi
+        if [ "$ttl" -gt "$ALLOWALL_MAX_TTL" ]; then
+          echo "note: ttl ${ttl}s exceeds the max of ${ALLOWALL_MAX_TTL}s — clamped" >&2
+          ttl="$ALLOWALL_MAX_TTL"
+        fi
+        echo "$(( $(date +%s) + ttl ))" > "$ALLOWALL_UNTIL"
+        echo "$(date +%s) $(date -Iseconds) on ttl=$ttl" >> "$ALLOWALL_EVENTS"
+        echo "⚠ allow-all ACTIVE for ${ttl}s — ALL traffic (any domain, any port) now bypasses the firewall. Effective within ~5s. Run 'fw allow-all off' to end it early."
+        ;;
+      *)
+        echo "usage: fw allow-all [ttl_seconds] | fw allow-all off | fw allow-all status" >&2
+        exit 1
+        ;;
+    esac
+    ;;
   feature)
     sub="${2:-}"
     case "$sub" in
@@ -432,6 +493,7 @@ case "${1:-}" in
     echo "usage: fw allow <domain> [ttl_seconds] | fw deny <domain> | fw list | fw blocks | fw log"
     echo "       fw feature list | show <name> | on|off <name> | create | edit | delete <name>"
     echo "       fw audit [--from DATE] [--to DATE] [--host PATTERN] [--status denied|allowed] [--limit N]"
+    echo "       fw allow-all [ttl_seconds] | fw allow-all off | fw allow-all status"
     echo ""
     echo "run from the host as:"
     echo "  FW=\"agentic-\$(basename \"\$PWD\")-firewall\""
