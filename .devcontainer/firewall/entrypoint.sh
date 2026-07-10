@@ -14,9 +14,11 @@ rm -rf /policy/features.defs 2>/dev/null || true
 mkdir -p /policy/features.defs
 cp /etc/squid/features/*.list /policy/features.defs/ 2>/dev/null || true
 
-# First run: seed the toggle state. Safe-defaults ON; everything else opt-in.
+# First run: seed the toggle state. AgenticPlayground defaults favor
+# convenience for low-risk work (common language ecosystems + Copilot
+# inference on); azure/infosupport stay opt-in since they're org-specific.
 if [ ! -f /policy/features.state ]; then
-  defaults_on=" anthropic github npm opencode "
+  defaults_on=" anthropic github npm opencode copilot pypi golang "
   for f in /policy/features.defs/*.list; do
     [ -e "$f" ] || continue
     name="$(basename "$f" .list)"
