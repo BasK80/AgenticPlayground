@@ -94,9 +94,9 @@ Microsoft apt, a generic JS CDN); everything project-specific is a feature.
 | `github` | git, `gh`, GitHub package/skill installs | **on** |
 | `npm` | npm / yarn registries | **on** |
 | `opencode` | opencode's model catalogue (`models.dev`) | **on** |
-| `copilot` | GitHub Copilot inference (`*.githubcopilot.com`); **depends on `github`** | off |
-| `pypi` | Python package index | off |
-| `golang` | Go module proxy + checksum DB | off |
+| `copilot` | GitHub Copilot inference (`*.githubcopilot.com`); **depends on `github`** | **on** |
+| `pypi` | Python package index | **on** |
+| `golang` | Go module proxy + checksum DB | **on** |
 | `azure` | Azure AI Foundry (Entra ID, ARM, Foundry portal, data plane) | off |
 | `infosupport` | Info Support LLM gateway (test) | off |
 

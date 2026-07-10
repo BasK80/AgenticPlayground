@@ -4,6 +4,8 @@ This guide walks through creating a brand-new repository with this devcontainer 
 
 The example throughout uses a fictional new project called `acme-corp/legacy-moderniser`. Substitute your own org and repo name everywhere you see it.
 
+> This guide forks **AgenticPlayground** — the low-risk, playground-tuned variant (more feature-sets on by default, a temporary `fw allow-all` escape hatch). If you need the stricter, allowlist-only posture instead, fork [AgenticDevcontainer](https://github.com/BasK80/AgenticDevcontainer) directly and follow the same steps against that repo. See [docs/comparison.md](comparison.md#vs-upstream-agenticdevcontainer) for the tradeoffs.
+
 ---
 
 ## Strategy
@@ -14,7 +16,7 @@ You fork this project on GitHub — the fork *becomes* your new project repo. Yo
 
 ## Step 1: Fork on GitHub
 
-1. Go to `https://github.com/BasKloetIS/AgenticDevcontainer` and click **Fork**.
+1. Go to `https://github.com/BasK80/AgenticPlayground` and click **Fork**.
 2. Name the fork `legacy-moderniser` under your org: `acme-corp/legacy-moderniser`.
 
 This fork is your project repo. It starts with everything wired up — the devcontainer, firewall, agent tooling, and bundled skills.
@@ -35,21 +37,21 @@ cd legacy-moderniser
 Register the original template as a second remote so you can pull improvements later:
 
 ```bash
-git remote add upstream https://github.com/BasKloetIS/AgenticDevcontainer.git
+git remote add upstream https://github.com/BasK80/AgenticPlayground.git
 git fetch upstream
 ```
 
 You now have two remotes:
 - `origin` → your project (`acme-corp/legacy-moderniser`)
-- `upstream` → the template (`BasKloetIS/AgenticDevcontainer`)
+- `upstream` → the template (`BasK80/AgenticPlayground`)
 
 Verify:
 ```bash
 git remote -v
 # origin    https://github.com/acme-corp/legacy-moderniser.git (fetch)
 # origin    https://github.com/acme-corp/legacy-moderniser.git (push)
-# upstream  https://github.com/BasKloetIS/AgenticDevcontainer.git (fetch)
-# upstream  https://github.com/BasKloetIS/AgenticDevcontainer.git (push)
+# upstream  https://github.com/BasK80/AgenticPlayground.git (fetch)
+# upstream  https://github.com/BasK80/AgenticPlayground.git (push)
 ```
 
 ---
@@ -237,4 +239,4 @@ docker compose -f .devcontainer/docker-compose.yml up -d
 
 ## Contributing improvements back upstream
 
-If you fix a bug or add something broadly useful to the core infrastructure, consider opening a PR back to `BasKloetIS/AgenticDevcontainer`. Because your fork preserves the full git history, GitHub makes this straightforward from the **Contribute** button on your fork's page.
+If you fix a bug or add something broadly useful to the core infrastructure, consider opening a PR back to `BasK80/AgenticPlayground`. Because your fork preserves the full git history, GitHub makes this straightforward from the **Contribute** button on your fork's page.

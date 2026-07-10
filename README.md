@@ -1,26 +1,28 @@
-# Agentic Dev Container
+# Agentic Playground
 
-A generic hardened Dev Container for running AI coding agents safely. Provides default-deny network isolation, project-scoped state, and non-root execution out of the box — then makes that sandbox comfortable to live in, with first-class support for several agent frameworks (Claude Code, opencode, GitHub Copilot CLI) and LLM providers (Anthropic direct, Anthropic API key / gateway, Azure AI Foundry, GitHub Copilot).
+A generic hardened Dev Container for running AI coding agents safely — tuned for **low-risk, experimental, "playground" work**. This is a downstream fork of [AgenticDevcontainer](https://github.com/BasK80/AgenticDevcontainer), which it continues to track for security fixes and infrastructure improvements. It keeps the same hardened perimeter (default-deny network isolation, project-scoped state, non-root execution) but relaxes a few defaults for convenience: more feature-sets are enabled out of the box, and a self-expiring `fw allow-all` escape hatch lets you temporarily bypass the firewall entirely when the allowlist model gets in the way of exploratory work. If you need the stricter, allowlist-only posture, use upstream AgenticDevcontainer directly — see [docs/comparison.md](docs/comparison.md#vs-upstream-agenticdevcontainer) for the tradeoffs.
+
+It ships with first-class support for several agent frameworks (Claude Code, opencode, GitHub Copilot CLI) and LLM providers (Anthropic direct, Anthropic API key / gateway, Azure AI Foundry, GitHub Copilot).
 
 ## Goal
 
-**Security is the primary goal.** This container exists so that a misbehaving or compromised agent cannot reach anything outside the project:
+**Security is still the foundation.** This container exists so that a misbehaving or compromised agent cannot reach anything outside the project — the perimeter itself is unchanged from upstream:
 
 1. **Blast-radius containment.** Limits what a running agent can touch to the project workspace and an explicit allowlist of network destinations — no host home directory, no cloud credentials, no SSH keys.
 
 2. **Project isolation.** Each project gets its own container, caches, and session state. No cross-project bleed.
 
-**Ease of use is a close second.** A sandbox nobody wants to work in doesn't get used, so the container is also built to be productive and framework-agnostic — without ever relaxing the security boundary above:
+**Ease of use for low-risk work is the priority on top of that.** A sandbox nobody wants to work in doesn't get used, so this fork is tuned to be productive and framework-agnostic for exploratory tasks, while still keeping the security boundary above intact and auditable:
 
 3. **Multiple agent frameworks, one container.** [Claude Code](https://claude.com/product/claude-code), [opencode](https://opencode.ai/), and the [GitHub Copilot CLI](https://github.com/features/copilot/cli) are all installed and ready to run side by side.
 
 4. **Pluggable LLM providers.** A single `use-*` switch ([`llm-switch.sh`](docs/file-guide.md#devcontainerdevelopmentllm-switchsh)) routes `claude`/`opencode` across Anthropic direct, an Anthropic API key or gateway, and Azure AI Foundry; Copilot-backed models are available through opencode and the Copilot CLI.
 
-5. **Comfortable out of the box.** A useful baseline of CLI tools, an auto-opening terminal, firewall-aware tooling that explains blocks instead of failing cryptically, and guidance for [adding your own tools](docs/operations.md#adding-tools-to-the-development-container) and skills.
+5. **Comfortable out of the box.** A broader set of firewall feature-sets enabled by default (see below), an auto-opening terminal, firewall-aware tooling that explains blocks instead of failing cryptically, a temporary allow-all escape hatch for when the allowlist gets in the way, and guidance for [adding your own tools](docs/operations.md#adding-tools-to-the-development-container) and skills.
 
 ## Security measures
 
-- **Default-DENY outbound network** via a separate `firewall` container (Squid). The dev container has no direct route to the internet — all egress goes through a domain allowlist.
+- **Default-DENY outbound network** via a separate `firewall` container (Squid). The dev container has no direct route to the internet — all egress goes through a domain allowlist, with a `fw allow-all` escape hatch for temporarily bypassing it (self-expiring, host-only, fully audited — see [docs/allowlist.md](docs/allowlist.md#temporarily-allowing-all-traffic)).
 - **Out-of-band management plane.** The `control` container (dashboard + CLI) is on a separate network and is unreachable from `development` — an agent cannot modify its own allowlist.
 - **Long-term audit log.** Every proxied request is recorded to a SQLite audit log (configurable retention, default 2 months), queryable from the host (`fw audit`) and the dashboard, with CSV export — an agent cannot reach or tamper with it.
 - **Non-root user, no sudo.** Container runs as `devuser` (UID 1000).

@@ -4,6 +4,8 @@ This guide walks through dropping this devcontainer setup into a codebase you al
 
 The example throughout uses a fictional legacy codebase called `acme-corp/legacy-moderniser`. Substitute your own org and repo name everywhere you see it.
 
+> This guide forks **AgenticPlayground** — the low-risk, playground-tuned variant (more feature-sets on by default, a temporary `fw allow-all` escape hatch). If you need the stricter, allowlist-only posture instead, fork [AgenticDevcontainer](https://github.com/BasK80/AgenticDevcontainer) directly and follow the same steps against that repo. See [docs/comparison.md](comparison.md#vs-upstream-agenticdevcontainer) for the tradeoffs.
+
 ---
 
 ## Strategy
@@ -14,7 +16,7 @@ Your repo forks this project on GitHub and adds it as a second git remote (`upst
 
 ## Step 1: Fork on GitHub
 
-1. Go to `https://github.com/BasKloetIS/AgenticDevcontainer` and click **Fork**.
+1. Go to `https://github.com/BasK80/AgenticPlayground` and click **Fork**.
 2. Name the fork `legacy-moderniser` under your org: `acme-corp/legacy-moderniser`.
 
 > You are forking the *template* here, not your actual project code. In step 3 you will move this fork's `.devcontainer/` content into your real repo.
@@ -37,13 +39,13 @@ If your project repo already exists locally, just `cd` into it.
 Inside your project repo, register the original template as a second remote:
 
 ```bash
-git remote add upstream https://github.com/BasKloetIS/AgenticDevcontainer.git
+git remote add upstream https://github.com/BasK80/AgenticPlayground.git
 git fetch upstream
 ```
 
 You now have two remotes:
 - `origin` → your project (`acme-corp/legacy-moderniser`)
-- `upstream` → the template (`BasKloetIS/AgenticDevcontainer`)
+- `upstream` → the template (`BasK80/AgenticPlayground`)
 
 ---
 

@@ -1,5 +1,19 @@
 # Comparison with similar solutions
 
+## vs. upstream AgenticDevcontainer
+
+This project (AgenticPlayground) is a downstream fork of [AgenticDevcontainer](https://github.com/BasK80/AgenticDevcontainer) and continues to track it as `upstream` for security fixes and infrastructure improvements. The security core — network topology, out-of-band management plane, audit logging, non-root execution — is identical. The fork exists purely to relax a few defaults for **low-risk, exploratory work**, where the strict allowlist model can get in the way:
+
+| | AgenticPlayground (this project) | Upstream AgenticDevcontainer |
+|---|---|---|
+| **Security core** | Identical — same firewall topology, management plane, audit log | Identical |
+| **Default feature-sets** | `anthropic`, `github`, `npm`, `opencode`, `copilot`, `pypi`, `golang` on out of the box | Only `anthropic`, `github`, `npm`, `opencode` on; the rest opt-in |
+| **Full firewall bypass** | `fw allow-all` — self-expiring (default 300s, max 3600s), host-only, fully audited | Not present — allowlist is the only egress path |
+| **Intended use** | Low-risk, experimental, throwaway tasks where convenience beats strict containment | Any project, including ones with real exfiltration risk |
+| **Resource limits** | Same (4 CPU / 8GB / 512 PIDs) | Same |
+
+Pick upstream AgenticDevcontainer if the project handles anything sensitive and you want the allowlist to be the *only* way out. Pick AgenticPlayground if you're doing quick, disposable, low-stakes experimentation and don't want to manage feature-sets or hit allowlist friction — while still keeping the container-level isolation and auditability that make the perimeter worth having in the first place.
+
 ## Docker Sandboxes
 
 [Docker Sandboxes](https://www.docker.com/products/docker-sandboxes/) (`sbx`) is a Docker product that wraps AI coding agents in disposable **microVMs** — a stronger isolation boundary than a plain container. It ships as a standalone CLI (no Docker Desktop required), defaults to `--dangerously-skip-permissions` mode because the microVM makes that safe, and lets agents run Docker inside the sandbox for nested use cases.
