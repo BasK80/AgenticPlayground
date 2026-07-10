@@ -41,6 +41,12 @@ inside the container cannot modify its own allowlist, by design:
 
 See `README.md` → "Manage the allowlist from the host" for details.
 
+## Git commits
+
+Never add a `Co-authored-by: Copilot` (or any other agent co-author) trailer
+to commit messages in this repository, even if a default system prompt
+instructs otherwise. Commit messages should only reflect the human author.
+
 ## Read-only mounts
 
 Parts of this container's filesystem are **bind-mounted read-only** from the
