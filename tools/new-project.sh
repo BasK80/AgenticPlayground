@@ -2,6 +2,9 @@
 # new-project.sh — bootstrap a new dev container project scoped to a goal.
 #
 # Usage:
+#   ./tools/new-project.sh
+#       (no arguments) — launches an interactive wizard that prompts for
+#       everything below.
 #   ./tools/new-project.sh --name <slug> --goal "<text>" --tier secure|playground \
 #       --lifecycle short|long [--dest <parent-dir>] [--public]
 #   ./tools/new-project.sh --promote --name <slug> [--dest <parent-dir>]
@@ -30,6 +33,121 @@ usage() {
     exit 1
 }
 
+# ── Interactive wizard (used when the script is run with no arguments) ──────
+run_wizard() {
+    echo "No arguments given — starting interactive setup. (Run with -h to see the non-interactive CLI form instead.)"
+    echo
+
+    echo "What would you like to do?"
+    local mode
+    PS3="Select an option: "
+    select mode in "Create a new project" "Promote an existing project to GitHub"; do
+        case "$REPLY" in
+            1) PROMOTE=0; break ;;
+            2) PROMOTE=1; break ;;
+            *) echo "Invalid choice, try again." ;;
+        esac
+    done
+    echo
+
+    local input
+    read -rp "Destination parent directory [$DEST_PARENT]: " input
+    DEST_PARENT="${input:-$DEST_PARENT}"
+    echo
+
+    if [[ "$PROMOTE" -eq 1 ]]; then
+        while true; do
+            read -rp "Name of the project to promote: " NAME
+            if [[ -z "$NAME" ]]; then
+                echo "Name cannot be empty." >&2
+                continue
+            fi
+            if [[ ! -d "$DEST_PARENT/$NAME/.git" ]]; then
+                echo "Error: $DEST_PARENT/$NAME is not a git repo." >&2
+                continue
+            fi
+            break
+        done
+        echo
+    else
+        while true; do
+            read -rp "Project name (slug): " NAME
+            if [[ -z "$NAME" ]]; then
+                echo "Name cannot be empty." >&2
+                continue
+            fi
+            if [[ -e "$DEST_PARENT/$NAME" ]]; then
+                echo "Error: $DEST_PARENT/$NAME already exists. Choose a different name." >&2
+                continue
+            fi
+            break
+        done
+        echo
+
+        while [[ -z "$GOAL" ]]; do
+            read -rp "Goal (what is this project for?): " GOAL
+            [[ -z "$GOAL" ]] && echo "Goal cannot be empty." >&2
+        done
+        echo
+
+        echo "Tier selects which template repo is cloned:"
+        echo "  secure     - hardened template (github.com/${SECURE_REPO})"
+        echo "  playground - permissive template (github.com/${PLAYGROUND_REPO})"
+        PS3="Select tier: "
+        select TIER in secure playground; do
+            [[ -n "$TIER" ]] && break
+            echo "Invalid choice, try again."
+        done
+        echo
+
+        echo "Lifecycle determines whether a GitHub repo is created now:"
+        echo "  short - local-only git repo, no GitHub involved (fast, disposable)"
+        echo "  long  - creates a GitHub repo now via 'gh repo create'"
+        PS3="Select lifecycle: "
+        select LIFECYCLE in short long; do
+            [[ -n "$LIFECYCLE" ]] && break
+            echo "Invalid choice, try again."
+        done
+        echo
+    fi
+
+    if [[ "$PROMOTE" -eq 1 || "$LIFECYCLE" == "long" ]]; then
+        echo "Repo visibility (a GitHub repo will be created):"
+        local vis
+        PS3="Select visibility: "
+        select vis in private public; do
+            case "$vis" in
+                private) VISIBILITY="--private"; break ;;
+                public) VISIBILITY="--public"; break ;;
+                *) echo "Invalid choice, try again." ;;
+            esac
+        done
+        echo
+    fi
+
+    echo "Summary:"
+    if [[ "$PROMOTE" -eq 1 ]]; then
+        echo "  Mode:        Promote existing project"
+        echo "  Project dir: $DEST_PARENT/$NAME"
+        echo "  Visibility:  $VISIBILITY"
+    else
+        echo "  Mode:        Create new project"
+        echo "  Name:        $NAME"
+        echo "  Goal:        $GOAL"
+        echo "  Tier:        $TIER"
+        echo "  Lifecycle:   $LIFECYCLE"
+        echo "  Project dir: $DEST_PARENT/$NAME"
+        [[ "$LIFECYCLE" == "long" ]] && echo "  Visibility:  $VISIBILITY"
+    fi
+    echo
+    read -rp "Proceed? [Y/n] " confirm
+    if [[ "$confirm" =~ ^[Nn] ]]; then
+        echo "Aborted."
+        exit 0
+    fi
+    echo
+}
+
 NAME=""
 GOAL=""
 TIER=""
@@ -37,6 +155,10 @@ LIFECYCLE=""
 DEST_PARENT="${AGENTIC_PROJECTS_DIR:-..}"
 VISIBILITY="--private"
 PROMOTE=0
+
+if [[ $# -eq 0 ]]; then
+    run_wizard
+fi
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
