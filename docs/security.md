@@ -12,7 +12,7 @@
 
 **Deliberate, auditable escape hatch (`fw allow-all`).** For playground projects with looser requirements, the allowlist can be bypassed entirely — any domain, any port — via `fw allow-all`, run from the host only. It is not reachable from inside `development` (same host-only model as every other `fw` command), always self-expires (default 300s, hard-capped at 3600s — there is no permanent allow-all), and every on/off transition (including automatic expiry) is appended to `/policy/allow_all_events.log`. Squid's access log and the long-term audit DB still record every individual request made during the window. Treat an active allow-all window as a temporary, logged suspension of the perimeter, not a config change — see [allowlist.md](allowlist.md#temporarily-allowing-all-traffic).
 
-**Azure browser callback ingress (localhost-only).** To support `az login` browser flow in-container, localhost ports `8400-8999` are published from host to `development`. The firewall only filters egress, so inbound publishes don't bypass it. Limited to `127.0.0.1` on the host.
+**Azure browser callback ingress (localhost-only).** To support `az login` browser flow in-container, a localhost port range is published from host to `development` (`8400-8999` by default; derived per project by `initialize.sh` so parallel instances don't collide — see the exact range in `.devcontainer/.env` as `DEV_PORT_BASE`/`DEV_PORT_END`). The firewall only filters egress, so inbound publishes don't bypass it. Limited to `127.0.0.1` on the host.
 
 **Non-root user, no sudo.** Container runs as `devuser` (UID 1000) with no sudo privileges whatsoever.
 
