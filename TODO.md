@@ -1,5 +1,5 @@
 # Ideas for a later date
+- Think of a way to better split the upstream documentation from the project documentation when starting a new project
+- Fix the 'Error: run 'gh auth login' first' when running new-project.sh on my host
 - Allow usage of an ollama instance running on a non-https port on the host
 - Allow ping
-- Turn the security check skill into a commandline tool that does not need an llm
-- Have the above script run periodically and alert the user of any issues
