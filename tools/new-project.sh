@@ -214,7 +214,8 @@ git clone --quiet "$TEMPLATE_URL" "$PROJECT_DIR"
 # ── Strip template-specific docs, write a starter README ────────────────────
 (
     cd "$PROJECT_DIR"
-    rm -f README.md USAGE.md presentation.html docs/comparison.md
+    rm -f README.md USAGE.md presentation.html docs/comparison.md \
+        docs/spin-off-new-project.md docs/spin-off-existing-repo.md
     printf '# %s\n\nSee GOAL.md for what this project is for.\n' "$NAME" > README.md
 )
 
