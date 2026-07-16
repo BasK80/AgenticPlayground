@@ -28,6 +28,7 @@ does not implement anything itself; it ends when each idea is implementation-rea
 ## Decisions so far
 
 - [Split upstream vs. project documentation when starting a new project](tickets/001-doc-split.md) — extend `new-project.sh`'s strip list to also delete `docs/spin-off-new-project.md` and `docs/spin-off-existing-repo.md`; infra docs (security/allowlist/operations/providers/auditing/file-guide) stay as living project docs, unchanged across tier/lifecycle.
+- [Fix 'Error: run 'gh auth login' first' when running new-project.sh on my host](tickets/002-gh-auth-error.md) — not a bug: WSL2 host had no browser registered for `xdg-open`, so `gh auth login` silently never completed. Fixed by installing `wslu` + `BROWSER=wslview`; documented as a WSL2 caveat in USAGE.md.
 
 ## Not yet specified
 

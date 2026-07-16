@@ -2,8 +2,8 @@
 id: 002-gh-auth-error
 title: "Fix 'Error: run gh auth login first' when running new-project.sh on host"
 label: wayfinder:grilling
-status: open
-assignee: null
+status: closed
+assignee: copilot-cli-session
 blocked_by: []
 ---
 
@@ -28,3 +28,27 @@ Facts already gathered:
   `tools/sync-upstream.sh:81`.
 - The scripts are documented (`docs/spin-off-new-project.md`) as run from a
   clone of AgenticPlayground — doesn't specify host vs. container explicitly.
+
+## Resolution
+
+**No bug in this repo.** Root cause confirmed live with the reporter: on
+their WSL2 host, `gh auth login`'s device-flow browser open failed silently
+(`xdg-open` had no registered browser — `x-www-browser`, `firefox`, etc. all
+missing), so the login never actually completed, leaving `gh` unauthenticated
+on the host. `tools/new-project.sh`'s `gh auth status` check was correctly
+reporting that real state — not misbehaving.
+
+Fix (host-side, no code change needed): install `wslu` (provides `wslview`)
+and set `BROWSER=wslview`, which `gh` (and most CLIs) check before falling
+back to `xdg-open`:
+```bash
+sudo apt update && sudo apt install -y wslu
+echo 'export BROWSER=wslview' >> ~/.bashrc && source ~/.bashrc
+```
+After that, `gh auth login` opened the browser automatically, login
+succeeded, and re-running `new-project.sh` got past the check.
+
+Documented as a WSL2 caveat in `USAGE.md`'s "Windows + WSL2 + Rancher
+Desktop" prerequisites section so future WSL2 users don't hit the same
+detour.
+

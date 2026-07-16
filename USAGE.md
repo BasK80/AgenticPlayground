@@ -47,6 +47,19 @@ The dev container blocks all outbound traffic by default and only allows a small
    ```
    You should see a "Hello from Docker!" message.
 
+> **`gh auth login` fails to open a browser?** WSL2's Ubuntu shell has no
+> browser registered for `xdg-open`, so `gh auth login` (and other CLI
+> device-login flows, e.g. `tools/new-project.sh --lifecycle long`) can't
+> auto-open the login page — you'd otherwise have to copy the printed URL
+> into a browser by hand every time. Fix it once, on the host:
+> ```bash
+> sudo apt update && sudo apt install -y wslu
+> echo 'export BROWSER=wslview' >> ~/.bashrc && source ~/.bashrc
+> ```
+> `wslu` provides `wslview`, which opens your Windows default browser from
+> WSL; most CLIs (including `gh`) check `$BROWSER` before falling back to
+> `xdg-open`.
+
 ---
 
 ## 2. Get the code
