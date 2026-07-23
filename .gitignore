@@ -5,3 +5,8 @@ node_modules/
 
 # Personal, per-checkout Claude Code permission overrides (any directory)
 **/.claude/settings.local.json
+
+# Corporate MITM root CA certs (machine-specific, never commit)
+.devcontainer/development/certs/*
+!.devcontainer/development/certs/.gitkeep
+!.devcontainer/development/certs/README.md
