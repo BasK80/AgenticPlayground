@@ -215,8 +215,20 @@ git clone --quiet "$TEMPLATE_URL" "$PROJECT_DIR"
 (
     cd "$PROJECT_DIR"
     rm -f README.md USAGE.md presentation.html docs/comparison.md \
-        docs/spin-off-new-project.md docs/spin-off-existing-repo.md
+          docs/allowlist.md docs/auditing.md docs/file-guide.md \
+          docs/operations.md docs/providers.md docs/security.md \
+          docs/spin-off-existing-repo.md docs/spin-off-new-project.md
     printf '# %s\n\nSee GOAL.md for what this project is for.\n' "$NAME" > README.md
+    mkdir -p docs/input_data
+    touch docs/input_data/.gitkeep
+    cat > docs/input_data/README.md << 'INPUTEOF'
+# Input data
+
+Drop source material for this project here (notes, interview transcripts,
+exports, reference documents, etc.). Nothing under this folder is generated
+by the template — it exists purely as a conventional place to keep the raw
+inputs an agent working on this project should read.
+INPUTEOF
 )
 
 # ── Write GOAL.md ─────────────────────────────────────────────────────────
@@ -228,12 +240,6 @@ $GOAL
 - **Tier:** $TIER (template: $TEMPLATE_REPO)
 - **Lifecycle:** $LIFECYCLE
 - **Created:** $(date -u +%Y-%m-%dT%H:%M:%SZ)
-
-## Manual next steps (if needed)
-
-- Need extra network domains? See docs/allowlist.md.
-- Need extra dependencies installed on first boot? See post-create.sh
-  (edit it on the host — it's read-only inside the container).
 EOF
 
 # ── Fresh git history + remotes ──────────────────────────────────────────────

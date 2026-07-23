@@ -10,7 +10,7 @@ The example throughout uses a fictional new project called `acme-corp/legacy-mod
 
 ## Quick start: `tools/new-project.sh`
 
-Steps 1–4 below (fork, clone, add upstream, clean up template docs) are automated by `tools/new-project.sh`, which lives in this repo. Run it from a clone of AgenticPlayground:
+Steps 1–4 below (fork, clone, add upstream, clean up template docs, scaffold `docs/input_data/`) are automated by `tools/new-project.sh`, which lives in this repo. Run it from a clone of AgenticPlayground:
 
 ```bash
 ./tools/new-project.sh --name legacy-moderniser \
@@ -20,7 +20,7 @@ Steps 1–4 below (fork, clone, add upstream, clean up template docs) are automa
 
 - `--tier secure|playground` — scaffold from AgenticDevcontainer or AgenticPlayground.
 - `--lifecycle short|long` — `short` creates a disposable **local-only** git repo (no GitHub, just an `upstream` remote for reference); `long` also creates a real GitHub repo (`gh repo create --source=. --push`, private by default, `--public` to override) and pushes to it as `origin`.
-- Writes a `GOAL.md` at the project root capturing your stated goal, tier, lifecycle, and pointers to the still-manual steps below (firewall domains, `post-create.sh` dependencies).
+- Writes a `GOAL.md` at the project root capturing your stated goal, tier, and lifecycle. Firewall domains and `post-create.sh` dependencies remain manual steps — see below.
 - Promote a `short` project to `long` later, from inside it: `./tools/new-project.sh --promote --name legacy-moderniser`.
 
 Requires the `gh` CLI (logged in) for `--lifecycle long` and `--promote`. Steps 5+ below (firewall feature-sets, `post-create.sh`, skills) are intentionally left manual — the script only points you at them via `GOAL.md`.
@@ -79,15 +79,25 @@ git remote -v
 
 ## Step 4: Clean up template-specific files
 
-Remove or replace the files that belong to the template, not your project:
+`tools/new-project.sh` does this for you automatically (see Quick start
+above). If you're following the manual steps instead, remove the files that
+belong to the template, not your project, and scaffold a place for your own
+source material:
 
 ```bash
 # Remove template documentation you'll replace with your own
-rm README.md USAGE.md presentation.html
-rm docs/comparison.md   # template-specific comparison doc; keep the rest
+rm README.md USAGE.md presentation.html docs/comparison.md \
+   docs/allowlist.md docs/auditing.md docs/file-guide.md \
+   docs/operations.md docs/providers.md docs/security.md \
+   docs/spin-off-existing-repo.md docs/spin-off-new-project.md
 
 # Start your own README
 echo "# legacy-moderniser" > README.md
+
+# Conventional place to keep source material for this project
+mkdir -p docs/input_data
+touch docs/input_data/.gitkeep
+
 git add -A
 git commit -m "chore: remove template docs, start project"
 ```
