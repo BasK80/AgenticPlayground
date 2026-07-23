@@ -263,13 +263,13 @@ Rancher Desktop's WSL integration is off. Open Rancher Desktop → Preferences �
 Your network blocks Debian mirrors. Retry once; if it persists, contact whoever gave you the repo.
 
 **Container build fails with a certificate error (self-signed cert in the chain)**
-Your network sits behind a corporate TLS-inspecting (MITM) proxy, and its root CA isn't trusted by the build yet — `curl`/`npm`/`git` reject the intercepted HTTPS connections. Drop your organization's root CA certificate (`.crt`, PEM format) into `.devcontainer/development/certs/` (gitignored — see the README in that directory), then rebuild:
+Your network sits behind a corporate TLS-inspecting (MITM) proxy, and its root CA isn't trusted by the build yet — `curl`/`npm`/`git` reject the intercepted HTTPS connections. Drop your organization's root CA export — PEM `.crt`/`.pem`, Base64 or DER `.cer`, or PKCS#7 `.p7b`/`.p7c`, whatever format you have — into `.devcontainer/development/certs/` (gitignored — see the README in that directory), then rebuild:
 
 ```bash
 docker compose -f .devcontainer/docker-compose.yml build development
 ```
 
-The Dockerfile trusts everything in that directory automatically (a no-op when it's empty), including for Node/npm via `NODE_EXTRA_CA_CERTS`.
+The Dockerfile auto-converts whatever format you dropped in and trusts it (a no-op when the directory is empty), including for Node/npm via `NODE_EXTRA_CA_CERTS`.
 
 ---
 

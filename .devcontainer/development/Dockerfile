@@ -39,7 +39,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # the corporate root CA (.crt, PEM) into development/certs/ before building
 # (see development/certs/README.md); this is a no-op when that dir is empty.
 COPY certs/ /usr/local/share/ca-certificates/corporate/
-RUN update-ca-certificates
+COPY convert-certs.sh /usr/local/share/ca-certificates/corporate/convert-certs.sh
+RUN sh /usr/local/share/ca-certificates/corporate/convert-certs.sh \
+    && rm -f /usr/local/share/ca-certificates/corporate/convert-certs.sh \
+    && update-ca-certificates
 ENV NODE_EXTRA_CA_CERTS=/etc/ssl/certs/ca-certificates.crt
 
 # Azure CLI — remove this block if you don't need Azure access (saves ~200 MB).
