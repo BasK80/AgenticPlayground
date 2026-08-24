@@ -1,0 +1,35 @@
+{
+  "name": "agentic-${localWorkspaceFolderBasename}",
+  "dockerComposeFile": "docker-compose.yml",
+  "service": "development",
+  "workspaceFolder": "/workspace",
+  "runServices": ["firewall", "control"],
+  "shutdownAction": "stopCompose",
+
+  "remoteUser": "devuser",
+  "containerUser": "devuser",
+
+  // initializeCommand runs on the host before Compose. Delegated to a script
+  // so we can conditionally omit opt-in env vars (writing them as empty would
+  // override values persisted in the container's ~/.claude/settings.json).
+  "initializeCommand": "bash .devcontainer/initialize.sh",
+
+  // Runs once after first container creation.
+  "postCreateCommand": "bash .devcontainer/development/post-create.sh",
+
+  // Runs on every container start (including after rebuilds).
+  "postStartCommand": "bash .devcontainer/development/post-start.sh",
+
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "anthropic.claude-code",
+        "eamodio.gitlens",
+        "ms-azuretools.vscode-docker"
+      ],
+      "settings": {
+        "terminal.integrated.defaultProfile.linux": "zsh"
+      }
+    }
+  }
+}

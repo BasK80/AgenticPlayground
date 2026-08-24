@@ -1,0 +1,144 @@
+name: agentic-${LOCAL_WORKSPACE_FOLDER_BASENAME}
+
+services:
+  firewall:
+    build: ./firewall
+    container_name: agentic-${LOCAL_WORKSPACE_FOLDER_BASENAME}-firewall
+    hostname: firewall
+    networks:
+      internal:
+        ipv4_address: ${FIREWALL_IP:-172.28.0.2}
+      egress: {}
+    volumes:
+      - "policy:/policy"
+      - "logs:/var/log/squid"
+      - "auditlog:/auditlog"
+    environment:
+      # Long-term audit-log retention. Rows older than this are pruned daily
+      # by auditlog.py. Override per-project in .env (AUDIT_RETENTION_DAYS).
+      AUDIT_RETENTION_DAYS: ${AUDIT_RETENTION_DAYS:-60}
+      FIREWALL_IP: ${FIREWALL_IP:-172.28.0.2}
+      TZ: ${TZ:-UTC}
+    healthcheck:
+      test: ["CMD-SHELL", "pgrep squid >/dev/null || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+    restart: unless-stopped
+
+  development:
+    build:
+      context: ./development
+      args:
+        USER_UID: "1000"
+        USER_GID: "1000"
+    container_name: agentic-${LOCAL_WORKSPACE_FOLDER_BASENAME}-development
+    hostname: agentic-${LOCAL_WORKSPACE_FOLDER_BASENAME}
+    networks: [internal]                 # internal-only = default-deny egress
+    # Azure CLI browser-login callback. Squid filters egress only, so inbound
+    # publishes don't bypass the firewall. Localhost-only on the host.
+    ports:
+      - "127.0.0.1:${DEV_PORT_BASE:-8400}-${DEV_PORT_END:-8999}:${DEV_PORT_BASE:-8400}-${DEV_PORT_END:-8999}"
+    # Opt-in passthrough (CLAUDE_CODE_OAUTH_TOKEN, ANTHROPIC_API_KEY,
+    # ANTHROPIC_BASE_URL) lives in .env, written by initialize.sh.
+    # env_file only sets vars that are present in the file, so unset host
+    # vars don't clobber values persisted in ~/.claude/settings.json.
+    env_file:
+      - .env
+    dns:
+      - ${FIREWALL_IP:-172.28.0.2}
+    environment:
+      TZ: ${TZ:-UTC}
+      NODE_OPTIONS: "--use-env-proxy"
+      NODE_USE_ENV_PROXY: "1"
+      HTTP_PROXY:  http://firewall:3128
+      HTTPS_PROXY: http://firewall:3128
+      http_proxy:  http://firewall:3128
+      https_proxy: http://firewall:3128
+      NO_PROXY:  localhost,127.0.0.1,firewall
+      no_proxy:  localhost,127.0.0.1,firewall
+    volumes:
+      - "..:/workspace:cached"
+      - "../.devcontainer/development:/workspace/.devcontainer/development"
+      - "../.devcontainer/development/Dockerfile:/workspace/.devcontainer/development/Dockerfile:ro"
+      - "../.devcontainer/development/post-create.sh:/workspace/.devcontainer/development/post-create.sh:ro"
+      - "../.devcontainer/development/post-start.sh:/workspace/.devcontainer/development/post-start.sh:ro"
+      - "../.devcontainer/firewall:/workspace/.devcontainer/firewall:ro"
+      - "../.devcontainer/control:/workspace/.devcontainer/control:ro"
+      - "../.devcontainer/docker-compose.yml:/workspace/.devcontainer/docker-compose.yml:ro"
+      - "../.devcontainer/devcontainer.json:/workspace/.devcontainer/devcontainer.json:ro"
+      - "../.devcontainer/.env:/workspace/.devcontainer/.env:ro"
+      - "../.devcontainer/initialize.sh:/workspace/.devcontainer/initialize.sh:ro"
+      - "../.vscode:/workspace/.vscode:ro"
+      - "claude:/home/devuser/.claude"
+      - "claude-json:/home/devuser/.claude-json"
+      - "history:/commandhistory"
+      - "node-modules:/workspace/node_modules"
+      - "npm-cache:/home/devuser/.npm"
+      - "pip-cache:/home/devuser/.cache/pip"
+      - "uv-cache:/home/devuser/.cache/uv"
+      - "cargo-registry:/home/devuser/.cargo/registry"
+      - "${HOST_GITCONFIG}:/home/devuser/.gitconfig:ro"
+      # SSH agent forwarding (macOS/Linux). Disabled by default — see README.
+      # - "${SSH_AUTH_SOCK:-/dev/null}:/ssh-agent"
+    # Resource limits (compose v2 non-swarm spellings).
+    cpus: 4.0
+    mem_limit: 8g
+    pids_limit: 512
+    user: devuser
+    working_dir: /workspace
+    depends_on:
+      firewall: { condition: service_healthy }
+    command: ["sleep", "infinity"]
+
+  control:
+    build: ./control
+    container_name: agentic-${LOCAL_WORKSPACE_FOLDER_BASENAME}-control
+    networks: [egress]                   # unrestricted; NOT on internal
+    environment:
+      # tz-fix: local timezone for control dashboard
+      TZ: ${TZ:-UTC}
+      PROJECT_NAME: ${LOCAL_WORKSPACE_FOLDER_BASENAME}
+      CONTROL_PORT: ${CONTROL_PORT:-8088}
+    ports:
+      - "127.0.0.1:${CONTROL_PORT:-8088}:8088"            # dashboard — localhost only
+    volumes:
+      - "policy:/policy"
+      - "logs:/var/log/squid:ro"
+      - "auditlog:/auditlog:ro"
+    restart: unless-stopped
+
+networks:
+  internal:
+    internal: true                       # no external route on Win/Mac/Linux
+    ipam:
+      config:
+        - subnet: ${INTERNAL_SUBNET:-172.28.0.0/24}
+  egress: {}
+
+volumes:
+  # Per-project naming via `name:` keeps caches isolated across projects.
+  # The map key is the short alias used in `services.*.volumes` above; the
+  # `name` is the actual Docker volume name (prefixed with project basename).
+  policy:
+    name: agentic-${LOCAL_WORKSPACE_FOLDER_BASENAME}-policy
+  logs:
+    name: agentic-${LOCAL_WORKSPACE_FOLDER_BASENAME}-logs
+  auditlog:
+    name: agentic-${LOCAL_WORKSPACE_FOLDER_BASENAME}-auditlog
+  claude:
+    name: ${LOCAL_WORKSPACE_FOLDER_BASENAME}-claude
+  claude-json:
+    name: ${LOCAL_WORKSPACE_FOLDER_BASENAME}-claude-json
+  history:
+    name: ${LOCAL_WORKSPACE_FOLDER_BASENAME}-history
+  node-modules:
+    name: ${LOCAL_WORKSPACE_FOLDER_BASENAME}-node-modules
+  npm-cache:
+    name: ${LOCAL_WORKSPACE_FOLDER_BASENAME}-npm-cache
+  pip-cache:
+    name: ${LOCAL_WORKSPACE_FOLDER_BASENAME}-pip-cache
+  uv-cache:
+    name: ${LOCAL_WORKSPACE_FOLDER_BASENAME}-uv-cache
+  cargo-registry:
+    name: ${LOCAL_WORKSPACE_FOLDER_BASENAME}-cargo-registry

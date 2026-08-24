@@ -1,0 +1,5 @@
+# depends: github
+# copilot — GitHub Copilot inference (agentic framework: opencode/Copilot CLI backend)
+# Device login + token exchange ride on the github feature (pulled in via depends).
+.githubcopilot.com
+.ghe.com

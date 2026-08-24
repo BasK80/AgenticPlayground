@@ -1,0 +1,33 @@
+{
+  // Auto-open an integrated terminal when the workspace folder opens, so users
+  // can interact with the container without manually opening a terminal panel.
+  //
+  // VS Code prompts to "Allow Automatic Tasks" on first open; once allowed the
+  // terminal opens on every subsequent attach. The task prints the AI-tools
+  // banner, then `exec`s an interactive login zsh so the task terminal
+  // *becomes* a usable shell and stays open — an empty command would exit
+  // immediately and show "press any key to close".
+  //
+  // `folderOpen` tasks also fire when the workspace is opened *locally* (e.g.
+  // on a Windows host with PowerShell), where the banner script / `zsh` don't
+  // exist. The command is therefore scoped per-platform: banner + `exec zsh -l`
+  // only on Linux (the container), and a harmless no-op on Windows/macOS hosts.
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Open terminal on attach",
+      "type": "shell",
+      "command": "bash .devcontainer/development/show-banner.sh; exec zsh -l",
+      "linux": { "command": "bash .devcontainer/development/show-banner.sh; exec zsh -l" },
+      "windows": { "command": "exit 0" },
+      "osx": { "command": "exit 0" },
+      "runOptions": { "runOn": "folderOpen" },
+      "presentation": {
+        "reveal": "always",
+        "panel": "new",
+        "focus": true
+      },
+      "problemMatcher": []
+    }
+  ]
+}
