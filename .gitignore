@@ -10,3 +10,6 @@ node_modules/
 .devcontainer/development/certs/*
 !.devcontainer/development/certs/.gitkeep
 !.devcontainer/development/certs/README.md
+
+# Model-picker skill state (machine-specific hardware/model/preference cache)
+.model-picker/
