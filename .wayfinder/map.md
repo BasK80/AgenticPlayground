@@ -305,6 +305,22 @@ wired, and demonstrated routing real tasks — not when a spec exists.
   asset — detail is in
   [the ticket's resolution](tickets/015-seat-type-and-credit-balance.md).
 
+- [Decide whether to enable flash attention and q8_0 KV cache on the host](tickets/016-kv-cache-quantisation.md)
+  — **skip it for now**, confirmed with Bas. The projected gain (+2,068
+  tokens, ~6.7%, on a model that already reaches ~30.7k of its own 32k
+  trained ceiling at f16) doesn't clear the bar against ollama's own docs
+  naming Qwen2's high GQA ratio as the worst case for quantization quality
+  loss, and it's a global setting with no per-model control. Does nothing for
+  the 14b (already dropped in [ticket 008](tickets/008-local-model-lineup.md)
+  for unrelated reasons). **Revisit only if a long-trained-context local
+  model (e.g. 128k) enters the lineup** — the `ollamaKvCacheAssumptions`
+  fingerprint mechanism ([ticket 007](tickets/007-data-schema.md)) is already
+  in place for that day. Kept regardless: ollama defaults context length
+  from VRAM (`<24 GiB → 4k`), so prefer per-request `num_ctx` over a global
+  `OLLAMA_CONTEXT_LENGTH` wherever the ollama call is actually made. No
+  separate asset — detail in
+  [the ticket's resolution](tickets/016-kv-cache-quantisation.md).
+
 ## Not yet specified
 
 - **The calibration loop.** How a bad recommendation gets fed back so the skill

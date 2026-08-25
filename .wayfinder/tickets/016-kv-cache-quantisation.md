@@ -2,8 +2,8 @@
 id: 016
 title: Decide whether to enable flash attention and q8_0 KV cache on the host
 label: wayfinder:task
-status: open
-assignee:
+status: closed
+assignee: Bas Kloet
 blocked_by: []
 ---
 
@@ -88,3 +88,44 @@ now the offline-only tier.
   is the offline-only tier. Worth doing before
   [Choose the local model line-up for an 8 GB card](008-local-model-lineup.md)
   if convenient, since it changes what fits.
+
+## Resolution (2026-08-25)
+
+**Decision: skip it for now — do not set `OLLAMA_KV_CACHE_TYPE=q8_0` on the
+host.** Confirmed with Bas directly, presenting the 2026-08-24 analysis above
+(gain, GQA-quality risk, global scope, 14b non-benefit) as the basis. He chose
+"skip it for now" over enabling-and-measuring.
+
+Resolving the four "resolve specifically" items in that light:
+
+1. **Quality impact:** not measured — moot, since the decision is not to
+   enable it. Would need a live before/after `doc-edit` comparison if this is
+   ever revisited.
+2. **Does it help the 14b:** confirmed no, by arithmetic (weights alone
+   ~9.1 GB > the ~6.3 GB ceiling from [the VRAM fit formula](004-vram-fit-formula.md)).
+   Moot twice over now — [ticket 008](008-local-model-lineup.md) already
+   dropped `qwen2.5:14b` from the lineup entirely, for reasons unrelated to
+   KV cache.
+3. **Host-side checklist:** not written — no change to make. If revisited,
+   the setting is `OLLAMA_KV_CACHE_TYPE=q8_0` (plus confirming
+   `OLLAMA_FLASH_ATTENTION`, though docs say ollama enables flash attention
+   automatically when supported) in the Windows host's ollama service
+   environment, not the dev container.
+4. **Re-measurement / fingerprint invalidation:** not needed — nothing
+   changed. The `ollamaKvCacheAssumptions` fingerprint mechanism in
+   `models.json` ([schema](../assets/007-data-schema.md)) stays as the
+   trigger for whenever this *is* revisited — no action needed today.
+
+**The trigger to revisit, unchanged from the 2026-08-24 analysis:** a model
+with a long trained context (e.g. 128k) entering the local lineup, where f16
+KV would be the binding VRAM constraint rather than the model's own trained
+ceiling. That's a future
+[local model line-up](008-local-model-lineup.md)-style question, not
+ticketed now since no such model is currently on the table.
+
+**Kept regardless of this decision — the more valuable finding already on
+this ticket:** ollama defaults context length from VRAM
+(`< 24 GiB VRAM → 4k`), so every local run is capped at 4,096 tokens unless
+`num_ctx` is set per request. Prefer per-request `num_ctx` over a global
+`OLLAMA_CONTEXT_LENGTH` — relevant to whichever ticket implements the actual
+ollama call (`pick-model` or `ollama-curate`).
