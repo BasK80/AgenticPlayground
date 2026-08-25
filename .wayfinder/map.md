@@ -248,6 +248,28 @@ wired, and demonstrated routing real tasks — not when a spec exists.
   [the ticket's resolution](tickets/010-write-ollama-curate.md) for exactly
   what was written.
 
+- [Wire ollama and GHE Copilot as opencode providers](tickets/009-wire-opencode-providers.md)
+  — **both wired and round-tripped live.** `ollama`: hand-written
+  openai-compatible provider stanza (`@ai-sdk/openai-compatible`, baseURL
+  `http://host.docker.internal:11434/v1`, model id `ollama/<tag>`) — not
+  cataloged on models.dev, per ticket 003. `github-copilot`: nothing new
+  needed, `auth.json` already covers it (ticket 003); model id
+  `github-copilot/<model>`. The real `llm-switch.sh` collision (its
+  `_opencode_write_config()` replaced the *whole* `.provider` key on every
+  `use-*` call, silently wiping a hand-added `ollama` entry) is **fixed** —
+  patched from the host via `apply-opencode-provider-merge.sh` (the file is a
+  read-only bind mount) to merge/clear only the `anthropic`/`azure` keys.
+  Verified live post-patch: `ollama` survives both a real `anthropic-key`
+  write and a `clear`. ⚠ **Process note, not a design decision:** an earlier
+  session tested this collision by running `use-anthropic-key`/`use-anthropic`
+  for real, which also rewrote the live, shared `~/.claude/settings.json` and
+  broke Bas's actual `claude` login — the re-verification this time called
+  `_opencode_write_config` directly instead, touching only opencode's config.
+  No new asset — detail is in
+  [the ticket's resolution](tickets/009-wire-opencode-providers.md). Unblocks
+  the last blocker on [Write the pick-model skill](tickets/011-write-pick-model.md)
+  besides [ticket 014](tickets/014-fast-and-longcontext-pricing.md).
+
 ## Not yet specified
 
 - **The calibration loop.** How a bad recommendation gets fed back so the skill

@@ -2,8 +2,8 @@
 id: 009
 title: Wire ollama and GHE Copilot as opencode providers
 label: wayfinder:task
-status: open
-assignee:
+status: closed
+assignee: Bas Kloet
 blocked_by: [002, 003]
 ---
 
@@ -88,3 +88,48 @@ which may be a cleaner mechanism than editing the file at all.
 
 The working provider stanzas, the exact model-id syntax for each side, and how
 the `llm-switch.sh` collision was resolved.
+
+## Resolution (2026-08-25)
+
+**Both backends wired and round-tripped for real.**
+
+- **ollama**: hand-written openai-compatible stanza in
+  `~/.config/opencode/opencode.json` (not cataloged on models.dev, confirmed by
+  ticket 003) — `npm: "@ai-sdk/openai-compatible"`, `options.baseURL:
+  "http://host.docker.internal:11434/v1"`, with a `models` map listing
+  `qwen2.5:7b` and `qwen3-coder:30b-a3b-q4_K_M`. Model id syntax:
+  `ollama/<tag>`. Round-tripped live: `opencode run -m ollama/qwen2.5:7b
+  "..."` echoed the sentinel. Proxy/allowlist did not interfere with the
+  plain-HTTP host-internal target — no firewall block observed.
+- **github-copilot**: nothing new to configure — ticket 003 already
+  established this works via `auth.json`, not a `provider` stanza. Model id
+  syntax: `github-copilot/<model>` (e.g. `github-copilot/claude-haiku-4.5`).
+  Round-tripped live: got a real reply over the API (the model declined to
+  literally echo the sentinel string, which is model behavior, not a
+  plumbing failure — connectivity and auth are confirmed).
+- **The `llm-switch.sh` collision (step 4) was real and is now fixed.** A
+  wayfinder session two runs ago tested it by running `use-anthropic-key` /
+  `use-anthropic` for real, which also rewrote the live, shared
+  `~/.claude/settings.json` (the `claude` Docker volume) and broke Bas's
+  actual `claude` login until he re-ran `claude login` — a costly way to
+  confirm the hypothesis. Fixed via
+  `/workspace/apply-opencode-provider-merge.sh` (run from the host, since
+  `llm-switch.sh` is a read-only bind mount — backed up to
+  `llm-switch.sh.bak`): `_opencode_write_config()` now merges/clears only the
+  `anthropic`/`azure` keys under `.provider`
+  (`del(.anthropic, .azure) + $patch`) instead of replacing the whole
+  `.provider` object. Verified **live, after the host applied the patch**, by
+  sourcing the real `llm-switch.sh` and calling the real
+  `_opencode_write_config` directly (bypassing `_claude_write_settings`
+  entirely, so Claude's login state was never touched this time): the
+  `ollama` provider survived both a real `anthropic-key` write and a `clear`.
+  `llm-mode` and `~/.claude/settings.json` confirmed untouched throughout, and
+  the ollama round-trip was re-verified afterward.
+- **Where the config lives:** `~/.config/opencode/opencode.json`'s
+  `.provider` key, same file `llm-switch.sh` already owned for Anthropic/Azure
+  — no ownership move needed once the merge fix was in place.
+- **Not done here:** extending `tools/test-opencode-providers.sh` with a
+  dedicated ollama/github-copilot phase (its existing phases only cover the
+  two Anthropic auth modes). The round-trips above were done ad hoc instead.
+  Left as a follow-up if the round-trip needs to be repeatable/CI-able later —
+  not blocking anything on this map, so not ticketed.

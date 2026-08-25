@@ -79,6 +79,9 @@ Build the routing skill: given a task, recommend a model with reasoning — and
 - [Decide how the skills detect that cloud is unreachable](006-offline-detection.md)
 - [Design the schema for hardware.json, model cache and remembered preferences](007-data-schema.md)
 - [Wire ollama and GHE Copilot as opencode providers](009-wire-opencode-providers.md)
+  — **closed**: both providers wired and round-tripped live; model id syntax is
+  `ollama/<tag>` and `github-copilot/<model>`
+  ([resolution](009-wire-opencode-providers.md))
 - [Determine the premium-request multiplier for each available Copilot model](013-premium-request-multipliers.md)
   — **closed**: billing is token-based, so the metadata `cost` field *is* the
   right ranking signal ([asset](../assets/013-copilot-credit-costs.md))
