@@ -321,6 +321,22 @@ wired, and demonstrated routing real tasks — not when a spec exists.
   separate asset — detail in
   [the ticket's resolution](tickets/016-kv-cache-quantisation.md).
 
+- [Confirm the data-residency AI-credit surcharge and how it stacks](tickets/018-data-residency-surcharge.md)
+  — **mechanism confirmed, activation for Bas is not.** The +10% surcharge
+  is tied to one specific, independently-toggled enterprise Copilot policy
+  ("Restrict Copilot to data residency compliant models"), **disabled by
+  default** — not automatic just from being on a data-residency host. Docs'
+  own worked example (100→110 credits) confirms it's **multiplicative on the
+  already-tiered final cost** (e.g. long-context `gpt-5.4` under this policy
+  = 2.0× × 1.10 = 2.2×, not 2.1×). Bas can see "data residency: EU" on his
+  enterprise page, but that's a distinct, enterprise-level setting from the
+  Copilot-specific policy — doesn't confirm the surcharge applies to him, and
+  he can't see that admin-only toggle directly. `pick-model` should treat
+  this as an **unresolved ±10% uncertainty band** on absolute credit
+  estimates, not a number to bake in — ranking between models is unaffected
+  either way. No separate asset — detail in
+  [the ticket's resolution](tickets/018-data-residency-surcharge.md).
+
 ## Not yet specified
 
 - **The calibration loop.** How a bad recommendation gets fed back so the skill

@@ -25,6 +25,14 @@ degradable extra this skill may surface ("you've used ~X credits recently")
 but does not need to. Not wired up or tested against the live API; skip it if
 it adds complexity disproportionate to the payoff.
 
+**Update (2026-08-25, from ticket 018's resolution):** absolute credit
+estimates carry an **unresolved ±10% uncertainty band** — a data-residency
+Copilot policy, off by default, would multiply the already-tiered final cost
+by 1.10 if Bas's enterprise has it on, and whether it does is genuinely
+unconfirmed (admin-only toggle). Doesn't affect model *ranking* (uniform
+either way) — just don't present a credit estimate as more precise than it
+is. See [ticket 018](018-data-residency-surcharge.md).
+
 ## Question
 
 Build the routing skill: given a task, recommend a model with reasoning — and
