@@ -288,6 +288,23 @@ wired, and demonstrated routing real tasks — not when a spec exists.
   **Unblocks [Write the pick-model skill](tickets/011-write-pick-model.md) —
   its last blocker, now fully open.**
 
+- [Establish Bas's seat type and how to read the remaining AI credit pool](tickets/015-seat-type-and-credit-balance.md)
+  — **the shared-pool remaining balance is genuinely out of reach**: GitHub's
+  billing API gates it behind enterprise/org admin or billing-manager role,
+  and Bas confirmed he's a regular member — matches the ticket's own
+  "acceptable outcome" branch. **But a third option surfaced that the ticket
+  didn't anticipate:** a per-user AI-credit endpoint exists
+  (`/users/{username}/settings/billing/ai_credit/usage`), and Bas confirmed
+  live, via the web UI, that he can see his own usage with no admin rights.
+  A tempting corroboration (a June-2026 changelog adding `ai_credits_used`)
+  turned out to be a **different, still admin-gated API** — caught by
+  checking, not assumed. `pick-model` ranks by relative cost only, per
+  ticket 013/014, and may optionally surface Bas's own recent consumption as
+  a degradable extra — not built here, flagged for
+  [Write the pick-model skill](tickets/011-write-pick-model.md). No separate
+  asset — detail is in
+  [the ticket's resolution](tickets/015-seat-type-and-credit-balance.md).
+
 ## Not yet specified
 
 - **The calibration loop.** How a bad recommendation gets fed back so the skill

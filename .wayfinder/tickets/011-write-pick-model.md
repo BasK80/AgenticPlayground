@@ -16,6 +16,15 @@ self-serves hardware specs. See
 [the data schema asset](../assets/007-data-schema.md). Ticket 015 covers only the
 harder "remaining balance" question, a degradable extra.
 
+**Update (2026-08-25, from ticket 015's resolution):** the shared-pool
+remaining balance is confirmed unreachable for Bas (regular member, no
+org/enterprise billing role). A per-user AI-credit endpoint
+(`/users/{username}/settings/billing/ai_credit/usage`) does exist and Bas can
+read his own usage via the web UI with no special role — an *optional*
+degradable extra this skill may surface ("you've used ~X credits recently")
+but does not need to. Not wired up or tested against the live API; skip it if
+it adds complexity disproportionate to the payoff.
+
 ## Question
 
 Build the routing skill: given a task, recommend a model with reasoning — and
