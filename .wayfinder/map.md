@@ -270,6 +270,24 @@ wired, and demonstrated routing real tasks — not when a spec exists.
   the last blocker on [Write the pick-model skill](tickets/011-write-pick-model.md)
   besides [ticket 014](tickets/014-fast-and-longcontext-pricing.md).
 
+- [Pin down the -fast variant pricing and the long-context tier threshold](tickets/014-fast-and-longcontext-pricing.md)
+  — **only `claude-opus-4.8-fast` has a documented rate** (2×, confirmed
+  directly): $10/$1(cached)/$12.50(cache-write)/$50. `-4.6-fast`/`-4.7-fast`
+  have **no individually published rate anywhere** (a live GitHub-staff-unanswered
+  community thread confirms the gap is real) — override both to 2× but mark
+  `assumed`, not `measured`. **The ticket's own premise on the long-context
+  threshold was wrong — it *is* published**: `gpt-5.4`/`gpt-5.5`/`gpt-5.6-sol`/`gpt-5.6-terra`
+  engage above **272K input tokens**, `gpt-5.6-luna` above **200K**; applied
+  automatically per-request against a single model id (medium confidence —
+  structural inference, not stated in prose); re-derived from the docs that
+  **exactly 5 of the 25 entitled models** carry a long-context tier at all.
+  Surfaced a uniform **+10% data-residency surcharge** (unverified scope and
+  stacking) split into
+  [ticket 018](tickets/018-data-residency-surcharge.md) rather than resolved
+  here. Detail: [pricing asset](assets/014-fast-and-longcontext-pricing.md).
+  **Unblocks [Write the pick-model skill](tickets/011-write-pick-model.md) —
+  its last blocker, now fully open.**
+
 ## Not yet specified
 
 - **The calibration loop.** How a bad recommendation gets fed back so the skill

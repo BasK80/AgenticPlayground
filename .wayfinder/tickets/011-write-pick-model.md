@@ -86,7 +86,11 @@ Build the routing skill: given a task, recommend a model with reasoning — and
   — **closed**: billing is token-based, so the metadata `cost` field *is* the
   right ranking signal ([asset](../assets/013-copilot-credit-costs.md))
 - [Pin down the -fast variant pricing and the long-context tier threshold](014-fast-and-longcontext-pricing.md)
-  — two known 2× errors that would corrupt ranking on exactly the expensive requests
+  — **closed**: only `claude-opus-4.8-fast` has a documented 2× rate (4.6/4.7
+  overridden by analogy, marked `assumed`); long-context threshold is
+  published after all (272K/200K depending on model), engages automatically
+  per-request against 5 of the 25 entitled models
+  ([resolution](014-fast-and-longcontext-pricing.md))
 
 ## Packaging (settled by tickets 001 and 002)
 
