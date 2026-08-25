@@ -2,8 +2,8 @@
 id: 011
 title: Write the pick-model skill
 label: wayfinder:task
-status: open
-assignee:
+status: closed
+assignee: Bas Kloet
 blocked_by: [001, 005, 006, 007, 009, 013, 014]
 ---
 
@@ -131,3 +131,118 @@ optional.
 
 Use `/write-a-skill` for the advice half. Mirror the portability pattern of
 `.claude/skills/security-test/SKILL.md`.
+
+## Resolution (2026-08-25)
+
+**Both artifacts built and packaging verified live in all three harnesses.**
+`.agents/skills/pick-model/{SKILL.md,REFERENCE.md}` (checklist + method
+reference, mirroring `ollama-curate`'s split), symlinked at
+`.claude/skills/pick-model` and `.opencode/skill/pick-model`. Confirmed
+discovered natively: Claude Code lists it as an available skill,
+`copilot skill list --json` shows it with `"source": "project"`, and a live
+`opencode serve` instance's `GET /skill` lists `pick-model` alongside the
+other project skills. No model name, task type, or hardware value is
+hardcoded in the prose — every fact is read from
+`/workspace/.model-picker/{hardware,models,preferences}.json`.
+
+**Data files updated** (this ticket's job per the ownership table in
+[the data schema asset](../assets/007-data-schema.md)):
+- `preferences.json`: `doc-review` and `code-agentic` offline defaults now
+  point to `ollama/qwen3-coder:30b-a3b-q4_K_M` (ticket 017's slow tier),
+  replacing the old `null`/`qwen2.5:7b` placeholders — this was flagged as
+  this ticket's job in ticket 010's resolution.
+- `models.json`: added a top-level `githubCopilotPricingCorrections` block
+  encoding tickets 014 and 018's findings (the `-fast` 2x multiplier table,
+  the five-model long-context threshold table, the unresolved
+  data-residency ±10% band) as data the skill applies at discovery/refresh
+  time, not hardcoded per-model. Updated `gpt-5.6-luna`'s
+  `longContextTier.thresholdTokens` from `null` to `200000` now that ticket
+  014 found it published after all.
+
+**Actuation: the ticket's own plan needed correcting, caught by building it,
+not by more reading.** The ticket specified "a `/pick-model` slash command
+via `PluginInput`'s `client`/`serverUrl`" — reading the actual
+`@opencode-ai/plugin` type definitions while implementing showed this is
+inconsistent: slash-command registration only exists on an undocumented,
+separate TUI-plugin export shape, not on the server-plugin shape that
+carries `client`. **Pivoted to a plugin-provided tool instead**
+(`.opencode/plugin/pick-model.ts`, tool `pickmodel_switch`) — documented,
+stable API, and arguably better UX: the pick-model skill calls it directly
+in the same turn it decides a model, no manual slash-command step, no
+stale-file handoff.
+
+**Two further implementation bugs found and fixed by actually running it
+live, not by re-reading types harder:**
+1. `PluginInput.client` is the **v1** SDK client — no `.model`/
+   `session.switchModel`. Those only exist on `/api/*` routes (confirmed
+   against the live server's own `/doc` OpenAPI spec; asset 002's original
+   research, from before this SDK version distinction was understood, named
+   the right routes but the wrong client).
+2. Plain `fetch()` from inside the tool against the server's own address
+   fails every time with a generic connection error — even though the
+   identical URL is `curl`-reachable from a shell at the same instant, and
+   an external fetch (to ollama) from the same tool call succeeds fine. A
+   real self-connection limitation, not a proxy/DNS/hostname issue (an
+   explicit IPv4-loopback-forcing rewrite made no difference). **Fix:**
+   `client._client.get/post({ url, body })` — the generic transport the
+   typed `client.*` methods are themselves built on — reaches `/api/*`
+   routes without hitting this limitation. Confirmed with a real switch
+   (`204`, session model actually changed) and a real validation-rejection
+   (`no-such-model-xyz` correctly refused, no switch attempted).
+
+**Verified live, end to end, for the ollama half:** `opencode run` with a
+real prompt telling the model to call `pickmodel_switch` — the tool
+validated against the live catalogue and switched the session for real
+(confirmed via the tool's own output and repeat calls returning the same
+success), and correctly refused a nonexistent model id without switching.
+
+**Not done here, left for
+[Verify both skills end to end](012-verify-end-to-end.md):**
+- Exercising the actual *reasoning* paths this skill's prose describes —
+  exemplar matching, the offline-detection probe, seat-type self-service,
+  the consent gate, escalation — none of these were driven by a real task
+  routing decision in this session, only written and reasoned about.
+- The `variant` (reasoning-effort) lever was smoke-tested structurally
+  (the tool accepts and forwards it) but not confirmed to actually change
+  model behavior.
+
+## Update (2026-08-25) — the `github-copilot` round-trip, done with real credits, found and fixed a real validation bug
+
+Bas okayed spending real Copilot credits to close the one gap the resolution
+above left open. **Good thing it was tested for real: validating against
+`GET /api/model` — exactly what this ticket's plan and
+[the model-switching asset](../assets/002-opencode-model-switching.md) both
+pointed at — silently and permanently fails for `github-copilot`.**
+
+Confirmed on multiple freshly-started `opencode serve` instances, before
+*and* after routing a real, successful completion through
+`github-copilot/gpt-5.6-luna` on that exact server process: `/api/model`
+(and `/api/provider`) only ever listed `opencode`(zen) and `ollama` —
+`github-copilot` never appeared, despite being fully configured and
+directly usable via `-m github-copilot/...` and via the raw switch endpoint
+itself (which always accepted it — consistent with ticket 002's finding
+that the switch endpoint doesn't validate). Had this shipped as closed
+without the real-credit test, `pickmodel_switch` would have **silently
+refused every legitimate `github-copilot` switch, forever** — the ollama-only
+verification in the original resolution above could not have caught this,
+because ollama happens to appear correctly in `/api/model`.
+
+**Fix:** validate against `GET /config/providers` instead (exposed on the
+v1 client as the typed, documented `client.config.providers()` — no more
+need for the `_client` escape hatch for this half). It reliably lists all
+25 `github-copilot` models, including on a server with zero prior activity.
+`.opencode/plugin/pick-model.ts` updated accordingly; the switch call itself
+is unchanged (`client._client.post`, per the original resolution).
+
+**Verified live, for real, with real credit spend:** `opencode run` told a
+free `ollama` model to call `pickmodel_switch` with
+`{providerID: "github-copilot", id: "gpt-5.6-luna"}` — switch succeeded.
+Continued that exact session with a fresh prompt (no model specified,
+inheriting the switch) — got a real completion (`"OPENCODE_RT_OK"`,
+`metadata.copilot` present, 8545 input / 9 output tokens billed) and a
+follow-up "what model are you" confirmed `github-copilot/gpt-5.6-luna`.
+**The actuation half is now genuinely confirmed working end-to-end for both
+providers**, closing the specific gap the original resolution flagged.
+[Verify both skills end to end](012-verify-end-to-end.md) still owns
+everything else in that section above (the reasoning paths, `variant`
+behavior, and the other five scenarios on its own list).

@@ -41,8 +41,17 @@ the map — the destination is "installed and verified working", not "written".
 
 ## Blocked by
 
-- [Write the ollama-curate skill](010-write-ollama-curate.md)
-- [Write the pick-model skill](011-write-pick-model.md)
+- [Write the ollama-curate skill](010-write-ollama-curate.md) — **closed**
+- [Write the pick-model skill](011-write-pick-model.md) — **closed**: both
+  artifacts built, packaging verified in all three harnesses, and the
+  actuation plugin's tool call was round-tripped live for **both** `ollama`
+  and (with real credit spend) `github-copilot` — the github-copilot pass
+  caught and fixed a real bug (validation was reading an endpoint that
+  silently omits github-copilot models entirely). What's still unexercised:
+  none of the skill's *reasoning* paths (matching, offline detection,
+  consent, escalation) were driven by a real routing decision — that's
+  squarely this ticket's job. See [its resolution](011-write-pick-model.md)
+  for exactly what was and wasn't covered.
 
 ## On completion
 

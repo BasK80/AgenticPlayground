@@ -337,6 +337,42 @@ wired, and demonstrated routing real tasks — not when a spec exists.
   either way. No separate asset — detail in
   [the ticket's resolution](tickets/018-data-residency-surcharge.md).
 
+- [Write the pick-model skill](tickets/011-write-pick-model.md) — **built,
+  packaged, and partially verified live.**
+  `.agents/skills/pick-model/{SKILL.md,REFERENCE.md}` implements
+  [the taxonomy and routing spec](assets/005-taxonomy-and-routing.md);
+  discovery confirmed in Claude Code, `copilot skill list --json`, and a live
+  opencode `GET /skill`. `preferences.json`'s `doc-review`/`code-agentic`
+  offline defaults now point at ticket 017's slow tier; `models.json` gained
+  a `githubCopilotPricingCorrections` block encoding tickets 014/018.
+  **Actuation needed correcting mid-build:** the ticket's planned "slash
+  command via `PluginInput`'s `client`/`serverUrl`" turned out inconsistent
+  with the real plugin API (slash commands are a separate, undocumented
+  TUI-plugin shape) — pivoted to a plugin **tool**
+  (`.opencode/plugin/pick-model.ts`, `pickmodel_switch`), which the skill
+  calls directly instead of requiring a manual step. Building it live also
+  caught two real bugs no amount of re-reading the types would have: the
+  plugin's `client` is v1-shaped (no `.model`/`session.switchModel` — those
+  are `/api/*`-only), and even a plain `fetch()` to the server's own address
+  fails from inside a tool call for reasons unrelated to DNS/proxy/hostname
+  (external fetches work fine) — fixed via `client._client`'s generic
+  transport, confirmed with a real switch and a real invalid-model
+  rejection. **Update:** Bas spent real Copilot credits to verify the
+  `github-copilot` round-trip, and it caught a real bug worth flagging here —
+  the validation step (`GET /api/model`, exactly what the ticket's plan and
+  ticket 002's research both pointed at) **silently and permanently omits
+  `github-copilot`** on this opencode version, even after a real completion
+  through it on the same server. Fixed by validating against
+  `GET /config/providers` instead. Confirmed live with real credit spend:
+  switch → real subsequent completion → correct model reported back. The
+  ollama-only test in the first pass could not have caught this, since
+  ollama happens to appear correctly in the (wrong) endpoint originally
+  used. **Still not yet verified:** every reasoning path (matching, offline
+  detection, consent, escalation) — those are
+  [Verify both skills end to end](tickets/012-verify-end-to-end.md)'s job,
+  now fully unblocked. No separate asset — detail in
+  [the ticket's resolution](tickets/011-write-pick-model.md).
+
 ## Not yet specified
 
 - **The calibration loop.** How a bad recommendation gets fed back so the skill
