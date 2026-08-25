@@ -1,7 +1,7 @@
 ---
 title: Model-picking skills for ollama + GHE Copilot
 label: wayfinder:map
-status: open
+status: closed
 ---
 
 ## Destination
@@ -372,6 +372,26 @@ wired, and demonstrated routing real tasks — not when a spec exists.
   [Verify both skills end to end](tickets/012-verify-end-to-end.md)'s job,
   now fully unblocked. No separate asset — detail in
   [the ticket's resolution](tickets/011-write-pick-model.md).
+
+- [Verify both skills end to end, online and offline](tickets/012-verify-end-to-end.md)
+  — **run for real, not simulated, closing the map.** Doc-edit and
+  code-agentic routing confirmed live (including a real, live consent-gate
+  ask/re-ask cycle with Bas); offline-detection classification confirmed
+  live at the mechanism level (branch itself not force-tested, judged not
+  worth disrupting shared networking for); portability confirmed for
+  Claude Code; a real local run's `/api/ps` correctly matched the cached
+  fit prediction (no correction needed — the right outcome, not a null
+  result); the `llm-switch.sh` collision fix re-confirmed live independent
+  of ticket 011. **Found and fixed a real design gap along the way:** the
+  seat-type self-serve ("Business or Enterprise?") doesn't hold when
+  credits are pooled across multiple licenses — Bas's real pooled allowance
+  is 15,000, not the single-seat 3,900 the schema assumed; corrected in
+  `hardware.json` with the reasoning on record. Also tried, live, with a
+  real working token, the programmatic route for the harder remaining-balance
+  question — a clean `404` on `api.info-support.ghe.com`, independently
+  reconfirming [ticket 015](tickets/015-seat-type-and-credit-balance.md)'s
+  finding from the API side. No separate asset — detail in
+  [the ticket's resolution](tickets/012-verify-end-to-end.md).
 
 ## Not yet specified
 

@@ -135,3 +135,20 @@ a different API from the billing endpoint above, not corroboration for it).
 Plus one direct, live confirmation from Bas about his own web-UI access.
 Captured 2026-08-25 — this is dated billing-API surface that changed as
 recently as June 2026; re-check before trusting past a few weeks stale.
+
+## Update (2026-08-25, from ticket 012's live verification)
+
+Independently reconfirmed the "no programmatic remaining-balance check"
+finding above, from the API side rather than the docs side: with a real,
+working `github-copilot` OAuth token (confirmed working against
+`GET /user`), `GET /users/BasKL/settings/billing/ai_credit/usage` (and the
+`/usage`, `/usage/summary` variants) on `api.info-support.ghe.com` all
+returned a clean `404` — distinct in character from a real scope-permission
+`403` (compare `/user/orgs`'s explicit "need read:org scope" response on
+the same token). Reads as "not implemented on this GHE Data Residency
+tenant," not "blocked by scope." Also surfaced, separately, that the
+*allowance* half this ticket deliberately left to `pick-model`'s self-serve
+(seat type → `monthlyCredits`) has its own gap: it doesn't hold when credits
+are pooled across multiple licenses, which is Bas's actual situation
+(15,000 pooled, not the single-seat 3,900) — corrected in `hardware.json`,
+detail in [ticket 012](012-verify-end-to-end.md).
