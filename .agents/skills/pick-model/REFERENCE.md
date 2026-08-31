@@ -248,20 +248,22 @@ out. Filter *before* ranking by cost, not after:
 | Current harness | Reachable providers | Detection |
 | --- | --- | --- |
 | Claude Code | `anthropic` only | `$CLAUDECODE == "1"` (verified live — this env var is set inside a real Claude Code session) |
-| GitHub Copilot CLI | `github-copilot` only | absence of `$CLAUDECODE`; no live-verified positive signal found yet — treat as the default when neither Claude Code's nor opencode's signal fires, and correct this row the first time it's actually checked from inside Copilot CLI |
-| opencode | `ollama`, `github-copilot`, and `anthropic` if `llm-switch.sh`'s `use-anthropic`/`use-anthropic-key` has been run for it | no live-verified positive signal found yet — same caveat as the Copilot CLI row |
+| opencode | `ollama`, `github-copilot`, and `anthropic` (see note below) | `$OPENCODE == "1"` (verified live — present in a real opencode session alongside `$OPENCODE_PID`; `$AGENT=1` also present but not opencode-specific) |
+| GitHub Copilot CLI | `github-copilot` only | absence of both `$CLAUDECODE` and `$OPENCODE` — by elimination; no env var injected by the Copilot CLI binary itself was found (checked via `strings` against the native binary). As long as opencode has a positive signal this two-way elimination is unambiguous. |
 
 `ollama` is never reachable from Claude Code or Copilot CLI regardless of
 network state — this is a harness capability gap, not an offline-detection
 case (map's "Out of scope": no ollama-to-Claude-Code proxy shim exists).
 
-**Known loose edge, not fixed here:** ticket 021 decided Anthropic entries
-are usable "only from within Claude Code," but `llm-switch.sh` also drives
-opencode's `use-anthropic`/`use-anthropic-key`, so the opencode row above
-may in practice see `anthropic` as reachable too, depending on which
-provider that session last switched to. Re-derive from `llm-switch.sh`'s
-actual state (`llm-mode`) rather than assuming either way if this matters
-for a specific session.
+**Anthropic reachability in opencode:** more direct than `llm-mode`. Check
+two locations in order:
+1. `~/.config/opencode/opencode.json` → `provider.anthropic` present and
+   non-empty → key-based Anthropic is wired (set by `use-anthropic-key`).
+2. `~/.local/share/opencode/auth.json` → top-level `anthropic` key present
+   → OAuth-based Anthropic is wired (set via `opencode auth login`).
+If neither is present, treat `anthropic` as unreachable from this opencode
+session. (`llm-switch.sh`'s `llm-mode` reflects the Claude Code active
+provider, not opencode's — do not use it as a proxy here.)
 
 ## Routing policy
 

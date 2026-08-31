@@ -470,6 +470,17 @@ wired, and demonstrated routing real tasks — not when a spec exists.
   ticket — see Not yet specified. No separate asset — detail is in
   [the ticket's resolution](tickets/023-add-anthropic-entries-to-pick-model.md).
 
+- [Verify live detection signals for opencode and Copilot CLI in pick-model's harness-reachability table](tickets/024-verify-harness-detection-signals.md)
+  — **`$OPENCODE == "1"` is the confirmed opencode signal** (live-verified in this
+  session; `$OPENCODE_PID` also present). Copilot CLI has no env var injected by
+  its binary — by-elimination is correct and now unambiguous (opencode's positive
+  signal means the two-way elimination is clean). Anthropic reachability in opencode
+  is directly readable from config: `provider.anthropic` in
+  `~/.config/opencode/opencode.json` (key-based) or `anthropic` key in
+  `~/.local/share/opencode/auth.json` (OAuth). `llm-switch.sh`'s `llm-mode` is
+  not a valid proxy — it reflects Claude Code's provider, not opencode's.
+  REFERENCE.md's Harness reachability table updated with confirmed signals.
+
 ## Not yet specified
 
 - **The calibration loop.** How a bad recommendation gets fed back so the skill
