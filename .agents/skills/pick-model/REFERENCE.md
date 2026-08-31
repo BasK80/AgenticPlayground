@@ -40,28 +40,84 @@ every default marked `"provenance": "assumed"`, and continue.
   provenance marker where the schema has one — staleness must always be
   visible, never silent (map invariant 7).
 
-## Seat type self-service
+## Credit allowance and balance
 
-If `hardware.json.creditAllowance.seatType` is `null` when the consent gate
-first needs a percentage-of-allowance figure, ask directly: "Business (1,900
-credits/month) or Enterprise (3,900)?" Cache the answer plus
-`monthlyCredits` and today's date under `creditAllowance`, `source: "asked"`.
-Never guess it, and don't ask again once cached — re-ask only if Bas says his
-seat changed. This is deliberately **not** blocked on
-[Establish Bas's seat type and how to read the remaining AI credit
-pool](../../../.wayfinder/tickets/015-seat-type-and-credit-balance.md) — that
-ticket covers the much harder *remaining balance* question (confirmed
-unreachable for a regular member; see its resolution), which this skill does
-not need in order to compute "X% of your month."
+**Fetched, never asked.** A single call returns both the allowance and the
+live remaining balance:
 
-**Optional, degradable extra:** a per-user AI-credit endpoint
-(`GET /users/{username}/settings/billing/ai_credit/usage` on the GHE host)
-exists and Bas confirmed he can see his own recent usage via the web UI with
-no special role — but this was never wired up or tested against the live
-API (see ticket 015's resolution), so treat it as something you *may* add
-later (e.g. "you've used ~X credits recently"), not something this skill
-needs to function. Skip it if it adds complexity disproportionate to the
-payoff.
+```
+GET https://api.<host>/copilot_internal/user
+Authorization: Bearer <token>
+```
+
+`<host>` derives from the logged-in host (`github.com` → `api.github.com`;
+a GHE tenant → `api.<tenant>`). Read
+`quota_snapshots.premium_interactions`.
+
+**Token resolution, in order** — stop at the first that yields one:
+
+1. `$GITHUB_TOKEN` or `$GH_TOKEN`
+2. `gh auth token` (add `--hostname <host>` when not github.com)
+3. `~/.copilot/config.json` → `copilotTokens["<host>:<login>"]`
+
+**Fields to trust:** `entitlement` (monthly allowance), `remaining` and
+`percent_remaining` (live), and the top-level `quota_reset_date`.
+**Do not use `credits_used`** — it lags materially behind `remaining`
+(observed staying flat at 10526 across two hours while `remaining` fell
+3602 → 3291).
+
+**Applies to Copilot-routed models only.** Run this whole section only when
+the candidate model's `provider` is `github-copilot`. For `ollama`, Anthropic
+or Foundry routes, omit the credit story entirely — those don't touch this
+allowance, and showing it would be actively misleading.
+
+**Fetch once per session**, cache under `hardware.json.creditAllowance` with
+`monthlyCredits`, `remaining`, `percentRemaining`, `resetDate`,
+`source: "fetched"` and a timestamp. Reuse it for the rest of the session.
+Within a long session the cached figure drifts — that is accepted.
+
+**Degrade silently.** If no token resolves, or the call fails, or the host is
+blocked by the firewall, express costs in money alone and say nothing about
+allowance or balance. Never fall back to asking for a seat type: the
+published per-seat figures (1,900 Business / 3,900 Enterprise) are *starting
+points an organisation may raise per user*. This account reports
+`copilot_plan: "business"` while its actual entitlement is 15,000 — the
+published figure would have been wrong by a factor of 7.9.
+
+**The allowance is personal, not pooled.** It is an individual budget within
+the organisation. Earlier research in
+[Copilot credit costs](../../../.wayfinder/assets/013-copilot-credit-costs.md)
+described a shared enterprise pool; that is corrected — see the note at the
+top of that asset.
+
+**Credits stop hard when exhausted.** Treat running out as a wall, not as
+billable overage. This is the account holder's stated understanding of their
+organisation's arrangement rather than something verified here — the API
+reports `overage_permitted: true` alongside `overage_entitlement: 0`, which
+is ambiguous, and verifying it would mean exhausting the allowance.
+
+**Endpoint caveat:** `/copilot_internal/user` is undocumented and may change
+without notice — hence the best-effort treatment above. It has been verified
+against a GHE Data Residency tenant, not against github.com. The *documented*
+billing routes (`/users/{u}/settings/billing/usage`,
+`/user/settings/billing/usage`,
+`/enterprises/{e}/settings/billing/usage`) all return **404** on this tenant,
+so don't reach for them.
+
+## Pace warning
+
+Outside the consent gate, surface the balance **only** when consumption is
+running ahead of the calendar: warn when the fraction of allowance remaining
+is smaller than the fraction of the billing period remaining, computed
+against `quota_reset_date`.
+
+A flat percentage threshold would misfire — 21.9% remaining is alarming
+mid-month but ample on the day before reset.
+
+**When the pace warning fires, the skill shifts from informing to steering:**
+actively propose cheaper models for the task rather than merely stating the
+cost. The user always overrules. Below the threshold, the recommendation
+never depends on the balance — the same task yields the same answer.
 
 ## Matching a task
 
@@ -226,17 +282,26 @@ no "slow local model" case left for a gate to guard against.
   model, ask; cache the yes/no under that type's `consent.expensiveModelApproved`
   and the cost level under `consent.approvedAtCostLevel`. Never ask again for
   that type at or below that level.
-- **Express the threshold as a percentage of `creditAllowance.monthlyCredits`**
-  ("~13% of your month"), never a raw credit count — raw numbers don't carry
-  meaning without the denominator.
+- **Fires above ~$1.00**, or when a new estimate reaches roughly **3× the
+  level already approved** for that type. Both are absolute — no percentage
+  of the allowance is involved.
+- **Express the cost as money first, credits second** — "~$1.50 (≈150
+  credits)". Money is the quantity that means something without a
+  denominator; the credit count is the unit the API reports and belongs in
+  the parenthesis, not in front.
+- **Always state the remaining balance in the gate** when the model is
+  Copilot-routed and a balance was fetched — "~$32.91 left this period,
+  resets 1 Sep". If no balance is available, show the cost alone rather than
+  guessing.
 - **Inform-only — it never blocks.** State the estimate and proceed; consent
-  is about Bas knowing, not gating the call.
+  is about Bas knowing, not gating the call. The one exception is the pace
+  warning (see § Pace warning), where the skill starts proposing cheaper
+  models — still without blocking.
 - **Re-ask when a new estimate greatly exceeds the consented level** — the
   gap this closes: approving Opus once for a 20-credit `code-agentic` task
   must not silently cover a 250-credit one under the same type/consent pair.
-- If `creditAllowance.monthlyCredits` is still `null`, self-serve it first —
-  see § Seat type self-service — don't skip the gate for lack of a
-  denominator.
+- **Never skip the gate for lack of allowance data.** The dollar threshold
+  is computable from the model's cost alone.
 
 ## Escalation
 

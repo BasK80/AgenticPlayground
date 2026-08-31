@@ -3,6 +3,30 @@
 Captured **2026-08-24**. Asset of
 [Determine the premium-request multiplier for each available Copilot model](../tickets/013-premium-request-multipliers.md).
 
+> **Correction, 2026-08-31** (ticket 019). Two claims in the "His currency"
+> list below are wrong and were the root of a bad design in `pick-model`:
+>
+> - **"Shared enterprise pool" is incorrect.** The allowance is a *personal*
+>   budget within the organisation. This wrong assumption is what made the
+>   consent gate express cost as "% of your month" against a denominator that
+>   was neither personal nor accurate.
+> - **"Overage, not cutoff" is retracted.** Credits are treated as stopping
+>   **hard** at zero. Not independently verified — the API reports
+>   `overage_permitted: true` alongside `overage_entitlement: 0` — but it is
+>   the account holder's understanding of their arrangement, and the "no
+>   cutoff" claim rested on the pooled assumption that has now fallen.
+>
+> Also: the 1,900 / 3,900 per-seat figures are *published starting points an
+> organisation may raise per user*, not a lookup table. This account reports
+> `copilot_plan: "business"` with an actual entitlement of **15,000** — the
+> table would be off by 7.9×. Both allowance and live remaining balance are
+> now fetched from `GET /copilot_internal/user`; see `pick-model`'s
+> REFERENCE.md § Credit allowance and balance.
+>
+> The rest of this asset — the credit unit, the token denomination, the
+> multiplier finding, the per-model costs — still holds. It is kept as the
+> research record it was, rather than rewritten.
+
 ## Headline: premium-request multipliers do not apply
 
 **GitHub replaced request-based billing with usage-based billing on 1 June 2026.**

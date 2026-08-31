@@ -30,6 +30,15 @@ This file is the checklist.
   prose.** Every one of those lives in the data directory (see REFERENCE.md
   § Configuration) — read it live. If a type or model looks wrong, the data
   files are what's stale, not this file.
+- **Never guess or invent model IDs.** The only valid IDs are the keys of
+  `models.json`'s `models` object — read them from the file, use them
+  verbatim. Do not derive, shorten, or substitute IDs from memory or from
+  what sounds plausible.
+- **Never silently continue after a failed model switch.** If `pickmodel_switch`
+  returns an error, stop immediately, report the exact error to the user, and
+  ask whether to proceed on the current model or take a different action. Do
+  not begin or continue the user's original task on the wrong model without
+  explicit approval.
 - **Never read `costPerMTokUSD` directly when `costOverride` is present.**
   Always resolve through `costOverride.effectiveCostPerMTokUSD` first — see
   REFERENCE.md § Cost computation. This is an enforced code path, not a
@@ -55,11 +64,11 @@ This file is the checklist.
 ## Checklist
 
 1. **Load state.** Read `hardware.json`, `models.json`, `preferences.json`
-   from the data directory (REFERENCE.md § Configuration). If
-   `hardware.json.creditAllowance.seatType` is `null` and this is the first
-   time a consent-gate decision needs it, ask once ("Business or
-   Enterprise?"), cache it, move on — see REFERENCE.md § Seat type
-   self-service.
+   from the data directory (REFERENCE.md § Configuration). If the cached
+   `creditAllowance` is absent or from an earlier session, fetch the live
+   allowance and remaining balance once and cache it — never ask for a seat
+   type, and degrade silently to money-only if the fetch fails. See
+   REFERENCE.md § Credit allowance and balance.
 2. **Match the task to a type.** Exemplars first, cheap and textual; only run
    full axis inference when nothing matches well, then mint a new type with
    its own exemplars. See REFERENCE.md § Matching a task.
@@ -76,20 +85,29 @@ This file is the checklist.
    local model that fits, per `models.json`'s ollama tier data — or say
    plainly that this task type has no offline coverage, per its
    `offline.modelKey: null` note, if that's what the data says.
-6. **Run the consent gate** if the estimate is expensive relative to the
-   cached monthly allowance and this type hasn't already consented at this
-   level. Inform, never block. See REFERENCE.md § Consent gate.
+6. **Run the consent gate** if the estimated cost exceeds ~$1.00, or reaches
+   roughly 3× the level this type already consented to. Express it as money
+   first, credits second, with the remaining balance alongside. Inform, never
+   block. See REFERENCE.md § Consent gate.
+   **Then check pace:** if the fraction of allowance remaining is below the
+   fraction of the period remaining, warn and start proposing cheaper models
+   — see REFERENCE.md § Pace warning. Skip both the balance and the pace
+   check for non-Copilot providers.
 7. **Explain the choice** — the reasoning is the product, written so Bas can
    overrule it, not an oracle's verdict.
 8. **State provenance** (`assumed` vs `measured`) for the type's default and
    say so plainly.
 9. **Actuate — opencode only.** Call the `pickmodel_switch` tool directly
    (provided by `.opencode/plugin/pick-model.ts`) with
-   `{providerID, id, variant?}` — no separate manual step, it validates
-   against the live catalogue before switching (REFERENCE.md § Actuation).
-   In Claude Code and Copilot CLI, no such tool exists — print the exact
-   switch command instead and say plainly that switching isn't available
-   there.
+   `{providerID, id, variant?}` — use the exact `providerID` and `id` keys
+   from `models.json`, verbatim, never invented. The tool validates against
+   the live catalogue before switching (REFERENCE.md § Actuation). **If the
+   tool returns an error:** stop, report the full error text to the user, and
+   ask explicitly: "Should I proceed on the current model, or do you want to
+   investigate the switch failure first?" Do not begin the user's task until
+   they answer. In Claude Code and Copilot CLI, no such tool exists — print
+   the exact switch command instead and say plainly that switching isn't
+   available there.
 10. **After a local run**, opportunistically read `/api/ps` and correct the
     tier verdict if it disagrees with the cached prediction — narrow
     corrections only, not a full re-derivation (that's `ollama-curate`'s job).
