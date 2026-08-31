@@ -1,7 +1,7 @@
 ---
 title: Model-picking skills for ollama + GHE Copilot
 label: wayfinder:map
-status: closed
+status: open
 ---
 
 ## Destination
@@ -393,6 +393,83 @@ wired, and demonstrated routing real tasks — not when a spec exists.
   finding from the API side. No separate asset — detail in
   [the ticket's resolution](tickets/012-verify-end-to-end.md).
 
+- [Rework how pick-model establishes and communicates the credit picture](tickets/019-credit-visibility-rework.md)
+  — the balance *is* fetchable after all (`GET /copilot_internal/user`, the
+  editors' own undocumented route — no admin/billing role needed); the earlier
+  404s were the wrong, documented routes. Consent gate now leads with money
+  (`~$1.50 (≈150 credits)`), balance is a best-effort cached enrichment shown
+  always in the gate, the "Business or Enterprise?" self-serve question is
+  removed entirely, and credits are treated as a hard wall — the gate
+  **steers, not just informs**, once the pace warning fires. Full decision
+  table in [the ticket's resolution](tickets/019-credit-visibility-rework.md).
+  Split two defects out of this grilling (below).
+
+- [Route opencode's Copilot provider at the GHE tenant instead of api.githubcopilot.com](tickets/020-opencode-ghe-copilot-route.md)
+  — **opencode already supports this natively**, no custom provider needed.
+  `opencode auth login -p github-copilot` → "GitHub Enterprise (Data
+  residency or self-hosted)" → tenant host runs its own device-code OAuth
+  flow, stored in opencode's own `auth.json`. Verified live against
+  `info-support.ghe.com`: `opencode models` returned the tenant's own
+  catalogue, not the public one. No `use-copilot` function needed — it's a
+  one-time login, not a runtime toggle. Detail in
+  [the login asset](assets/020-opencode-ghe-copilot-login.md).
+
+- [pick-model's catalogue has no Anthropic entries, but Claude Code runs on Anthropic](tickets/021-anthropic-models-missing-from-catalogue.md)
+  — **premise was wrong: it's not a flat subscription.** Bas's Anthropic access
+  is an **enterprise-managed usage quota** ($150 allowance, hard stop),
+  structurally like Copilot's credit pool, so the cost-lever treatment
+  applies after all. Anthropic entries belong in `models.json`, and
+  **`pick-model` owns them** (not `ollama-curate`) — they're usable only from
+  within Claude Code, unlike the cross-harness `ollama`/`github-copilot`
+  entries. Whether per-model rates differ within that quota (mirroring
+  Copilot's premium-request pattern) is unknown and split into
+  [ticket 022](tickets/022-anthropic-pricing-mechanics.md).
+
+- [Research Anthropic Claude-for-Work per-model pricing and quota mechanics](tickets/022-anthropic-pricing-mechanics.md)
+  — **no Copilot-style multiplier table; two layered quotas instead.** An
+  opaque, per-model-weighted rolling-window pool (Anthropic says Opus draws
+  "meaningfully more" than Sonnet/Haiku, no numbers published) plus an
+  optional dollar overage layer ("usage credits") that activates only once
+  the base pool is exhausted, billing at Anthropic's fully-published standard
+  per-model rates (Sonnet 5 $2/$10, Opus 5 $5/$25, Haiku 4.5 $1/$5 per MTok) —
+  hard stop, monthly reset. Bas's "$118 of $150" is almost certainly the
+  overage layer. That published table maps onto `models.json`'s
+  `costPerMTokUSD` schema with **no change needed**, cross-checked exactly
+  against the existing `github-copilot/claude-sonnet-5`/`claude-opus-5`
+  entries. Contrasts with Copilot: **no long-context surcharge** (current
+  Claude models bill the full 1M window at standard rate, directly stated);
+  prompt caching gets the same ~10x lever; reasoning tokens are confirmed
+  (not inferred) billed as output. **Balance-reading is worse than
+  Copilot's** — every usage/cost API needs an org-admin or primary-owner
+  credential, no low-privilege analogue to `copilot_internal/user` exists;
+  treat the balance as manual/self-reported. Detail:
+  [pricing mechanics asset](assets/022-anthropic-pricing-mechanics.md).
+  Unblocks [Add Anthropic entries to pick-model's models.json and cost reasoning](tickets/023-add-anthropic-entries-to-pick-model.md).
+
+- [Add Anthropic entries to pick-model's models.json and cost reasoning](tickets/023-add-anthropic-entries-to-pick-model.md)
+  — **built and verified live.** Three `anthropic/*` entries added to
+  `models.json` (Sonnet 5, Opus 5, Haiku 4.5) with a new
+  `anthropicPricingMechanics` block encoding ticket 022's traps (no
+  long-context tier, fast mode not actuable, unresolved data-residency band,
+  balance genuinely unfetchable). **Found a real design gap while wiring
+  it, not just a data gap:** routing had no concept of which providers the
+  *current harness* can even reach — it ranked every catalogue entry by cost
+  regardless, which is exactly what made ticket 021's complaint possible and
+  would have recurred in reverse the moment Anthropic entries existed. Fixed
+  with a new REFERENCE.md § Harness reachability (Claude Code detected via
+  `$CLAUDECODE`, live-verified) that filters candidates before cost-ranking
+  and treats a task type's stored default as a hint, ignored when
+  unreachable this session — no `preferences.json` schema change. Credit
+  gate/pace-warning logic now states cost in money alone for Anthropic,
+  never fetches or invents a balance for it. Verified by actually running
+  `pick-model` in this session: correctly detected the harness, ignored the
+  unreachable stored default, and picked the cheapest reachable model.
+  Surfaced two loose edges, one split into
+  [ticket 024](tickets/024-verify-harness-detection-signals.md) (opencode/
+  Copilot CLI detection signals unverified), the other too unscoped to
+  ticket — see Not yet specified. No separate asset — detail is in
+  [the ticket's resolution](tickets/023-add-anthropic-entries-to-pick-model.md).
+
 ## Not yet specified
 
 - **The calibration loop.** How a bad recommendation gets fed back so the skill
@@ -401,6 +478,14 @@ wired, and demonstrated routing real tasks — not when a spec exists.
 - **Multi-model workflows.** Draft with a cheap model then review with a better
   one, or vice versa. Attractive for credits but no clear shape yet — and now
   partly overlapping the benchmark effort, which is out of scope.
+- **Azure AI Foundry as a `models.json` provider.** `llm-switch.sh` can route
+  Claude Code (and opencode) through Foundry, a real, distinct cost surface
+  from both Anthropic and Copilot — surfaced while wiring
+  [ticket 023](tickets/023-add-anthropic-entries-to-pick-model.md)'s
+  harness-reachability logic. Not yet ticketed because neither "does it
+  belong in scope" nor "what does its cost axis even look like" (Azure
+  billing, not per-token like the other two) has been thought through enough
+  to phrase sharply.
 
 ## Out of scope
 

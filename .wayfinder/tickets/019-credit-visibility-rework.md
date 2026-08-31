@@ -2,7 +2,7 @@
 id: 019
 title: Rework how pick-model establishes and communicates the credit picture
 label: wayfinder:grilling
-status: resolved
+status: closed
 assignee: Bas Kloet
 blocked_by: []
 ---
